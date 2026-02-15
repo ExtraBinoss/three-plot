@@ -148,6 +148,13 @@ export class LinePlot implements Plot {
         return this.instancedMesh;
     }
 
+    public getDrawStats() {
+        return {
+            total: this.params.count,
+            visible: this.instancedMesh.count
+        };
+    }
+
     public dispose() {
         this.geometry.dispose();
         if (Array.isArray(this.material)) {

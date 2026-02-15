@@ -18,6 +18,7 @@ export interface PlotContainerOptions {
 export interface Plot {
     update(time: number, viewport: any): void;
     dispose(): void;
+    getDrawStats(): { total: number, visible: number };
     mesh: THREE.Object3D;
 }
 

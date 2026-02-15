@@ -182,6 +182,13 @@ export class PointPlot implements Plot {
         return this.points;
     }
 
+    public getDrawStats() {
+        return {
+            total: this.params.count,
+            visible: this.geometry.drawRange.count
+        };
+    }
+
     public dispose() {
         this.geometry.dispose();
         if (Array.isArray(this.material)) {
