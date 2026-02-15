@@ -14,28 +14,60 @@ interface FastPlotUniforms {
     uLodFactor: THREE.IUniform<number>;
 }
 
+export interface ViewportParams {
+    pixelWidth: number;
+    minX: number;
+    maxX: number;
+    zoom: number;
+}
+
+export interface FastPlotUpdateParams {
+    frequency: number;
+    amplitude: number;
+    presetIndex: number;
+    pointSize?: number;
+    count: number;
+    adaptive?: boolean;
+    lodFactor?: number;
+    autoSubsampling?: boolean;
+    autoCulling?: boolean;
+    pointsPerPixel?: number;
+}
+
 export class FastPlot {
     private points: THREE.Points;
     private geometry: THREE.BufferGeometry;
     private material: THREE.ShaderMaterial;
 
+    // Plot constants
+    private readonly PLOT_WIDTH = 400.0;
+    private readonly PLOT_MIN = -200.0;
+
     constructor(maxCount: number, baseColor: THREE.Color = new THREE.Color(0x00ff88)) {
-        this.geometry = new THREE.BufferGeometry();
-        
+        this.geometry = this.initGeometry(maxCount);
+        this.material = this.initMaterial(maxCount, baseColor);
+        this.points = this.initPoints();
+    }
+
+    private initGeometry(maxCount: number): THREE.BufferGeometry {
+        const geometry = new THREE.BufferGeometry();
         const indices = new Float32Array(maxCount);
         for (let i = 0; i < maxCount; i++) {
             indices[i] = i;
         }
+        geometry.setAttribute('pIndex', new THREE.BufferAttribute(indices, 1));
+        geometry.setDrawRange(0, maxCount);
+        return geometry;
+    }
 
-        this.geometry.setAttribute('pIndex', new THREE.BufferAttribute(indices, 1));
-
-        this.material = new THREE.ShaderMaterial({
+    private initMaterial(maxCount: number, baseColor: THREE.Color): THREE.ShaderMaterial {
+        return new THREE.ShaderMaterial({
             uniforms: {
                 uTime: { value: 0 },
                 uCount: { value: Number(maxCount) },
                 uFrequency: { value: 0.1 },
                 uAmplitude: { value: 20 },
-                uPreset: { value: 0.0 }, 
+                uPreset: { value: 0.0 },
                 uPointSize: { value: 5.0 },
                 uColor: { value: baseColor.clone() },
                 uAdaptive: { value: 1.0 }, // 1.0 = on, 0.0 = off
@@ -48,105 +80,96 @@ export class FastPlot {
             depthTest: false,
             blending: THREE.AdditiveBlending
         });
-
-        this.points = new THREE.Points(this.geometry, this.material);
-        this.points.frustumCulled = false;
-        
-        this.geometry.setDrawRange(0, maxCount);
     }
 
-    public update(time: number, params: {
-        frequency: number;
-        amplitude: number;
-        presetIndex: number;
-        pointSize?: number;
-        count: number;
-        adaptive?: boolean;
-        lodFactor?: number;
-        autoSubsampling?: boolean;
-        autoCulling?: boolean;
-        pointsPerPixel?: number;
-    }, viewport?: {
-        pixelWidth: number;
-        minX: number;
-        maxX: number;
-        zoom: number;
-    }) {
+    private initPoints(): THREE.Points {
+        const points = new THREE.Points(this.geometry, this.material);
+        points.frustumCulled = false;
+        return points;
+    }
+
+    public update(time: number, params: FastPlotUpdateParams, viewport?: ViewportParams) {
         const u = this.material.uniforms as unknown as FastPlotUniforms;
         if (!u) return;
 
-        if (u.uTime.value !== time) u.uTime.value = time;
-        if (u.uFrequency.value !== params.frequency) u.uFrequency.value = params.frequency;
-        if (u.uAmplitude.value !== params.amplitude) u.uAmplitude.value = params.amplitude;
-        
-        const presetVal = Number(params.presetIndex);
-        if (u.uPreset.value !== presetVal) u.uPreset.value = presetVal;
+        // Basic Uniforms
+        this.updateUniform(u.uTime, time);
+        this.updateUniform(u.uFrequency, params.frequency);
+        this.updateUniform(u.uAmplitude, params.amplitude);
+        this.updateUniform(u.uPreset, Number(params.presetIndex));
+        this.updateUniform(u.uLodFactor, params.lodFactor ?? 1.0);
 
         const isAdaptive = params.adaptive ?? true;
-        const adaptiveVal = isAdaptive ? 1.0 : 0.0;
-        if (u.uAdaptive.value !== adaptiveVal) u.uAdaptive.value = adaptiveVal;
+        this.updateUniform(u.uAdaptive, isAdaptive ? 1.0 : 0.0);
+
+        // Data Reduction and Culling
+        const effectiveCount = this.calculateEffectiveCount(params, viewport);
+        const { drawStart, drawCount } = this.calculateDrawRange(effectiveCount, params, viewport);
         
-        const lod = params.lodFactor ?? 1.0;
-        if (u.uLodFactor.value !== lod) u.uLodFactor.value = lod;
+        // Point Size Calculation
+        const pSize = this.calculatePointSize(params.pointSize ?? 5.0, params.count, isAdaptive);
 
-        // Data Reduction Logic
-        let effectiveCount = params.count;
-        const useSmartSub = params.autoSubsampling ?? true;
-        const useSmartCull = params.autoCulling ?? true;
-        const ppp = params.pointsPerPixel || 2.0;
-
-        // Plot constants
-        const plotWidth = 400.0;
-        const plotMin = -200.0;
-
-        if (useSmartSub && viewport) {
-            // Smart Subsampling: We want 'ppp' points per pixel in the VISIBLE area.
-            // If the whole plot is 400 units and we only see 40 units (10%), 
-            // we need 10x more points in total to maintain density in those 40 units.
-            const visibleWidthWorld = viewport.maxX - viewport.minX;
-            const visibilityRatio = plotWidth / Math.max(visibleWidthWorld, 0.001);
-            
-            const neededInView = viewport.pixelWidth * ppp;
-            const totalNeeded = Math.ceil(neededInView * visibilityRatio);
-            
-            effectiveCount = Math.min(params.count, totalNeeded);
-        }
-
-        let drawStart = 0;
-        let drawCount = effectiveCount;
-
-        if (useSmartCull && viewport) {
-            const startPct = (viewport.minX - plotMin) / plotWidth;
-            const endPct = (viewport.maxX - plotMin) / plotWidth;
-
-            const startIndex = Math.max(0, Math.floor(startPct * (effectiveCount - 1)));
-            const endIndex = Math.min(effectiveCount - 1, Math.ceil(endPct * (effectiveCount - 1)));
-
-            if (startIndex < effectiveCount && endIndex >= 0) {
-                drawStart = startIndex;
-                drawCount = Math.max(1, endIndex - startIndex + 1);
-            } else {
-                drawCount = 0; // Completely off-screen
-            }
-        }
-
-        let pSize = params.pointSize || 5.0;
-        if (isAdaptive) {
-            // Stability fix: base the adaptive size on the TOTAL requested count, 
-            // not the subsampled effectiveCount. This keeps size constant during zoom.
-            pSize = Math.max(0.1, pSize * Math.sqrt(100000 / params.count));
-        }
-        
-        if (u.uPointSize.value !== pSize) u.uPointSize.value = pSize;
-        
-        if (u.uCount.value !== effectiveCount) {
-             u.uCount.value = Number(effectiveCount);
-        }
-        
+        // Final Updates
+        this.updateUniform(u.uPointSize, pSize);
+        this.updateUniform(u.uCount, effectiveCount);
         this.geometry.setDrawRange(drawStart, drawCount);
+    }
+
+    private updateUniform<T>(uniform: THREE.IUniform<T>, value: T) {
+        if (uniform.value !== value) {
+            uniform.value = value;
+        }
+    }
+
+    private calculateEffectiveCount(params: FastPlotUpdateParams, viewport?: ViewportParams): number {
+        const useSmartSub = params.autoSubsampling ?? true;
+        if (!useSmartSub || !viewport) {
+            return params.count;
+        }
+
+        const ppp = params.pointsPerPixel || 2.0;
+        const visibleWidthWorld = viewport.maxX - viewport.minX;
+        const visibilityRatio = this.PLOT_WIDTH / Math.max(visibleWidthWorld, 0.001);
+        
+        const neededInView = viewport.pixelWidth * ppp;
+        const totalNeeded = Math.ceil(neededInView * visibilityRatio);
+        
+        return Math.min(params.count, totalNeeded);
+    }
+
+    private calculateDrawRange(effectiveCount: number, params: FastPlotUpdateParams, viewport?: ViewportParams) {
+        const useSmartCull = params.autoCulling ?? true;
+        
+        if (!useSmartCull || !viewport) {
+            return { drawStart: 0, drawCount: effectiveCount };
+        }
+
+        const startPct = (viewport.minX - this.PLOT_MIN) / this.PLOT_WIDTH;
+        const endPct = (viewport.maxX - this.PLOT_MIN) / this.PLOT_WIDTH;
+
+        const startIndex = Math.max(0, Math.floor(startPct * (effectiveCount - 1)));
+        const endIndex = Math.min(effectiveCount - 1, Math.ceil(endPct * (effectiveCount - 1)));
+
+        if (startIndex < effectiveCount && endIndex >= 0) {
+            return {
+                drawStart: startIndex,
+                drawCount: Math.max(1, endIndex - startIndex + 1)
+            };
+        }
+
+        return { drawStart: 0, drawCount: 0 }; // Completely off-screen
+    }
+
+    private calculatePointSize(baseSize: number, totalCount: number, isAdaptive: boolean): number {
+        if (!isAdaptive) return baseSize;
+        
+        // Stability fix: base the adaptive size on the TOTAL requested count, 
+        // not the subsampled effectiveCount. This keeps size constant during zoom.
+        return Math.max(0.1, baseSize * Math.sqrt(100000 / totalCount));
     }
 
     public get mesh() {
         return this.points;
     }
 }
+
