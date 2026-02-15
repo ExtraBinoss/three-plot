@@ -111,7 +111,8 @@ export class PlotContainer {
         } else if (type === 'axis') {
             plot = new AxisPlot(countOrColor || '#ffffff');
         } else if (type === 'text') {
-            plot = new TextPlot(countOrColor || 2000);
+            // Lower default capacity: starting at 100 is enough with auto-grow
+            plot = new TextPlot(countOrColor || 100);
             if (this.fontConfig && this.fontConfig.json && this.fontConfig.texture) {
                 plot.load(this.fontConfig.json, this.fontConfig.texture);
             }
