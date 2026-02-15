@@ -102,7 +102,10 @@ const initPlot = () => {
   } else if (params.mode === 'Instanced') {
     currentPlot = new InstancedPlot(2000000, color);
   } else if (params.mode === 'Lines') {
-    currentPlot = new LinePlot(2000000, color);
+    // For Lines (Line2), the CPU->GPU transfer is more expensive.
+    // We cap it to a reasonable count if it's too high for stable 60fps.
+    const safeCount = Math.min(params.count, 100000);
+    currentPlot = new LinePlot(safeCount, color);
   }
   
   if (currentPlot) {
