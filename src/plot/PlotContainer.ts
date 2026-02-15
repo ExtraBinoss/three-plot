@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { LinePlot } from './line/LinePlot';
 import { PointPlot } from './point/PointPlot';
+import { AxisPlot } from './shared/AxisPlot';
 
 /**
  * Options for initializing a PlotContainer.
@@ -26,7 +27,7 @@ export interface Plot<T = any> {
     mesh: THREE.Object3D;
 }
 
-export type PlotType = 'line' | 'point';
+export type PlotType = 'line' | 'point' | 'axis';
 
 export class PlotContainer {
     public scene: THREE.Scene;
@@ -89,12 +90,7 @@ export class PlotContainer {
             MIDDLE: THREE.MOUSE.DOLLY,
             RIGHT: THREE.MOUSE.ROTATE
         };
-
-        const grid = new THREE.GridHelper(2000, 100, 0x444444, 0x222222);
-        grid.rotation.x = Math.PI / 2;
-        grid.position.z = -1;
-        this.scene.add(grid);
-
+        
         this.resizeObserver = new ResizeObserver(() => this.onResize());
         this.resizeObserver.observe(this.container);
 
@@ -103,14 +99,15 @@ export class PlotContainer {
         }
     }
 
-    public add<T extends Plot>(type: PlotType, count: number, color: string | THREE.Color = '#00ff88'): T {
+    public add<T extends Plot>(type: PlotType, countOrColor: any, color?: string | THREE.Color): T {
         let plot: any;
-        const colorObj = new THREE.Color(color);
         
         if (type === 'line') {
-            plot = new LinePlot(count, colorObj);
+            plot = new LinePlot(countOrColor, new THREE.Color(color || '#00ff88'));
         } else if (type === 'point') {
-            plot = new PointPlot(count, colorObj);
+            plot = new PointPlot(countOrColor, new THREE.Color(color || '#00ff88'));
+        } else if (type === 'axis') {
+            plot = new AxisPlot(countOrColor || '#ffffff');
         }
 
         this.plots.add(plot);
@@ -120,6 +117,7 @@ export class PlotContainer {
 
     public line(count: number, color?: string | THREE.Color) { return this.add<LinePlot>('line', count, color); }
     public point(count: number, color?: string | THREE.Color) { return this.add<PointPlot>('point', count, color); }
+    public axis(color?: string | THREE.Color) { return this.add<AxisPlot>('axis', color); }
 
     public remove(plot: Plot) {
         if (this.plots.has(plot)) {

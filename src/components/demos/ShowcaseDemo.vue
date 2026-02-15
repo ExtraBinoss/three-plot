@@ -22,7 +22,7 @@
 import { ref, reactive, onMounted, onUnmounted, watch } from 'vue';
 import GUI from 'lil-gui';
 import PlotView from '../PlotView.vue';
-import { ThreePlot, type PlotUpdateParams, type PlotContainer } from '../../plot';
+import { type PlotUpdateParams, type PlotContainer } from '../../plot';
 
 const presets = ['sine', 'saw', 'zigzag', 'ramp', 'harmonic', 'chaos'];
 
@@ -90,10 +90,6 @@ const onPlotReady = (container: PlotContainer) => {
 
 const rebuildPlot = () => {
   if (!containerInstance) return;
-  
-  // Save current mode's settings before switching
-  const prevMode = params.mode === 'Lines' ? 'Points' : 'Lines';
-  // (Optional: sync logic if you want to remember more)
 
   containerInstance.clear();
   

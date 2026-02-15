@@ -2,6 +2,7 @@ import { PlotContainer, type PlotContainerOptions } from './PlotContainer';
 export * from './PlotContainer';
 export * from './point/PointPlot';
 export * from './line/LinePlot';
+export * from './shared/AxisPlot';
 export * from './shared/types';
 
 /**

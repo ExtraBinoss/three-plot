@@ -21,7 +21,7 @@
     </div>
 
     <div class="global-stats">
-      <div class="stat-pill">Fluent API / Single Canvas</div>
+      <div class="stat-pill">Bounded GPU Axes</div>
       <div class="stat-pill">Total GPU Points: <b>{{ (pointCount * 3).toLocaleString() }}</b></div>
     </div>
   </div>
@@ -30,7 +30,7 @@
 <script setup lang="ts">
 import { ref, watch, onUnmounted } from 'vue';
 import PlotView from '../PlotView.vue';
-import { type PlotContainer, type LinePlot } from '../../plot';
+import { type PlotContainer, type LinePlot, type AxisPlot } from '../../plot';
 
 const pointCount = 20000;
 const speed = ref(1.0);
@@ -38,25 +38,20 @@ const spread = ref(80);
 
 let containerInstance: PlotContainer | null = null;
 let redPlot: LinePlot, greenPlot: LinePlot, bluePlot: LinePlot;
+let redAxis: AxisPlot, greenAxis: AxisPlot, blueAxis: AxisPlot;
 
 const onPlotReady = (container: PlotContainer) => {
   containerInstance = container;
   
-  // Showcase of the Fluent API Chaining
-  redPlot = container.line(pointCount, '#ff4466')
-    .amplitude(50)
-    .frequency(0.05)
-    .preset(4);
+  // Create Axes
+  redAxis = container.axis('#ff4466').ticks(50, 10);
+  greenAxis = container.axis('#44ff88').ticks(50, 10);
+  blueAxis = container.axis('#44aaff').ticks(50, 10);
 
-  greenPlot = container.line(pointCount, '#44ff88')
-    .amplitude(50)
-    .frequency(0.05)
-    .preset(0);
-
-  bluePlot = container.line(pointCount, '#44aaff')
-    .amplitude(50)
-    .frequency(0.05)
-    .preset(5);
+  // Create Plots
+  redPlot = container.line(pointCount, '#ff4466').amplitude(50).frequency(0.05).preset(4);
+  greenPlot = container.line(pointCount, '#44ff88').amplitude(50).frequency(0.05).preset(0);
+  bluePlot = container.line(pointCount, '#44aaff').amplitude(50).frequency(0.05).preset(5);
   
   updatePlots();
 };
@@ -65,21 +60,26 @@ const updatePlots = () => {
   if (!containerInstance) return;
 
   const s = spread.value;
-  // Using the new fluent offset method
-  redPlot.offset(0, s);
-  greenPlot.offset(0, 0);
-  bluePlot.offset(0, -s);
+  const baseAmp = 50;
+  
+  // Red (Harmonic preset exceeds base amplitude, so we set a larger axis range)
+  redPlot.amplitude(baseAmp).offset(0, s);
+  redAxis.rangeY(-baseAmp * 1.5, baseAmp * 1.5).offset(0, s);
+
+  // Green (Sine is exactly baseAmp)
+  greenPlot.amplitude(baseAmp).offset(0, 0);
+  greenAxis.rangeY(-baseAmp, baseAmp).offset(0, 0);
+
+  // Blue (Chaos also exceeds base amplitude)
+  bluePlot.amplitude(baseAmp).offset(0, -s);
+  blueAxis.rangeY(-baseAmp * 2.0, baseAmp * 2.0).offset(0, -s);
 };
 
-// Sync spread changes
 watch(spread, updatePlots);
 
-// Global animation speed control
 watch(speed, (newSpeed) => {
     const active = newSpeed > 0;
-    redPlot.setParams({ autoUpdate: active });
-    greenPlot.setParams({ autoUpdate: active });
-    bluePlot.setParams({ autoUpdate: active });
+    [redPlot, greenPlot, bluePlot].forEach(p => p.setParams({ autoUpdate: active }));
 });
 
 onUnmounted(() => {
