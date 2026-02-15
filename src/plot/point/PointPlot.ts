@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import vertexShader from './vertex.glsl';
 import fragmentShader from './fragment.glsl';
 import { type PlotUpdateParams, type ViewportParams } from '../shared/types';
+import { type Plot } from '../PlotContainer';
 
 interface PointPlotUniforms {
     uTime: THREE.IUniform<number>;
@@ -13,18 +14,33 @@ interface PointPlotUniforms {
     uColor: THREE.IUniform<THREE.Color>;
     uAdaptive: THREE.IUniform<number>;
     uLodFactor: THREE.IUniform<number>;
+    uOffset: THREE.IUniform<THREE.Vector2>;
 }
 
-export class PointPlot {
+export class PointPlot implements Plot {
     private points: THREE.Points;
     private geometry: THREE.BufferGeometry;
     private material: THREE.ShaderMaterial;
+    private params: PlotUpdateParams;
 
     // Plot constants
     private readonly PLOT_WIDTH = 400.0;
     private readonly PLOT_MIN = -200.0;
 
     constructor(maxCount: number, baseColor: THREE.Color = new THREE.Color(0x00ff88)) {
+        this.params = {
+            count: maxCount,
+            frequency: 0.1,
+            amplitude: 20,
+            presetIndex: 0,
+            color: baseColor.clone(),
+            lodFactor: 1.0,
+            pointSize: 5.0,
+            adaptive: true,
+            autoSubsampling: true,
+            autoCulling: true
+        };
+
         this.geometry = this.initGeometry(maxCount);
         this.material = this.initMaterial(maxCount, baseColor);
         this.points = this.initPoints();
@@ -46,13 +62,14 @@ export class PointPlot {
             uniforms: {
                 uTime: { value: 0 },
                 uCount: { value: Number(maxCount) },
-                uFrequency: { value: 0.1 },
-                uAmplitude: { value: 20 },
-                uPreset: { value: 0.0 },
-                uPointSize: { value: 5.0 },
+                uFrequency: { value: this.params.frequency },
+                uAmplitude: { value: this.params.amplitude },
+                uPreset: { value: Number(this.params.presetIndex) },
+                uPointSize: { value: this.params.pointSize },
                 uColor: { value: baseColor.clone() },
-                uAdaptive: { value: 1.0 }, // 1.0 = on, 0.0 = off
-                uLodFactor: { value: 1.0 }
+                uAdaptive: { value: 1.0 }, 
+                uLodFactor: { value: 1.0 },
+                uOffset: { value: new THREE.Vector2(0, 0) }
             },
             vertexShader,
             fragmentShader,
@@ -69,30 +86,41 @@ export class PointPlot {
         return points;
     }
 
-    public update(time: number, params: PlotUpdateParams, viewport?: ViewportParams) {
+    public setParams(params: Partial<PlotUpdateParams>) {
+        this.params = { ...this.params, ...params };
+    }
+
+    public update(time: number, viewport?: ViewportParams) {
         const u = this.material.uniforms as unknown as PointPlotUniforms;
         if (!u) return;
 
-        // Basic Uniforms
-        this.updateUniform(u.uTime, time);
-        this.updateUniform(u.uFrequency, params.frequency);
-        this.updateUniform(u.uAmplitude, params.amplitude);
-        this.updateUniform(u.uPreset, Number(params.presetIndex));
-        this.updateUniform(u.uLodFactor, params.lodFactor ?? 1.0);
+        const p = this.params;
+        const elapsed = p.autoUpdate !== false ? time : 0;
 
-        const isAdaptive = params.adaptive ?? true;
+        // Basic Uniforms
+        this.updateUniform(u.uTime, elapsed);
+        this.updateUniform(u.uFrequency, p.frequency);
+        this.updateUniform(u.uAmplitude, p.amplitude);
+        this.updateUniform(u.uPreset, Number(p.presetIndex));
+        this.updateUniform(u.uLodFactor, p.lodFactor ?? 1.0);
+
+        const isAdaptive = p.adaptive ?? true;
         this.updateUniform(u.uAdaptive, isAdaptive ? 1.0 : 0.0);
 
-        if (params.color !== undefined) {
-            u.uColor.value.set(params.color as any);
+        if (p.color !== undefined) {
+            u.uColor.value.set(p.color as any);
+        }
+
+        if (p.offset) {
+            u.uOffset.value.set(p.offset.x, p.offset.y);
         }
 
         // Data Reduction and Culling
-        const effectiveCount = this.calculateEffectiveCount(params, viewport);
-        const { drawStart, drawCount } = this.calculateDrawRange(effectiveCount, params, viewport);
+        const effectiveCount = this.calculateEffectiveCount(p, viewport);
+        const { drawStart, drawCount } = this.calculateDrawRange(effectiveCount, p, viewport);
         
         // Point Size Calculation
-        const pSize = this.calculatePointSize(params.pointSize ?? 5.0, params.count, isAdaptive);
+        const pSize = this.calculatePointSize(p.pointSize ?? 5.0, p.count, isAdaptive);
 
         // Final Updates
         this.updateUniform(u.uPointSize, pSize);
@@ -147,13 +175,19 @@ export class PointPlot {
 
     private calculatePointSize(baseSize: number, totalCount: number, isAdaptive: boolean): number {
         if (!isAdaptive) return baseSize;
-        
-        // Stability fix: base the adaptive size on the TOTAL requested count, 
-        // not the subsampled effectiveCount. This keeps size constant during zoom.
         return Math.max(0.1, baseSize * Math.sqrt(100000 / totalCount));
     }
 
     public get mesh() {
         return this.points;
+    }
+
+    public dispose() {
+        this.geometry.dispose();
+        if (Array.isArray(this.material)) {
+            this.material.forEach(m => m.dispose());
+        } else {
+            this.material.dispose();
+        }
     }
 }

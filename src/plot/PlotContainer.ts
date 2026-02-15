@@ -1,45 +1,44 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { LinePlot } from './line/LinePlot';
+import { PointPlot } from './point/PointPlot';
 
 /**
  * Options for initializing a PlotContainer.
  */
 export interface PlotContainerOptions {
-    /** Existing WebGLRenderer to use. If not provided, a new one will be created. */
     renderer?: THREE.WebGLRenderer;
-    /** Existing Scene to use. If not provided, a new one will be created. */
     scene?: THREE.Scene;
-    /** Existing OrthographicCamera to use. If not provided, a new one will be created. */
     camera?: THREE.OrthographicCamera;
-    /** Whether to automatically start the render loop. Defaults to true. */
     autoRender?: boolean;
-    /** Anti-aliasing setting for the internal renderer (if created). */
     antialias?: boolean;
-    /** Alpha setting for the internal renderer (if created). */
     alpha?: boolean;
+}
+
+export interface Plot {
+    update(time: number, viewport: any): void;
+    dispose(): void;
+    mesh: THREE.Object3D;
 }
 
 /**
  * Main entry point for the ThreePlot library.
- * Manages the Three.js scene, camera, renderer, and render loop.
  */
 export class PlotContainer {
     public scene: THREE.Scene;
     public camera: THREE.OrthographicCamera;
     public renderer: THREE.WebGLRenderer;
     public controls: OrbitControls;
+    
     private container: HTMLElement;
     private animationId: number | null = null;
     private resizeObserver: ResizeObserver;
     private isExternalRenderer: boolean = false;
     private autoRender: boolean = true;
     
-    /**
-     * Callback for custom per-frame logic.
-     * @param time Total elapsed time in milliseconds.
-     */
+    private plots: Set<Plot> = new Set();
+    
     public onUpdate?: (time: number) => void;
-
 
     constructor(container: HTMLElement, options: PlotContainerOptions = {}) {
         this.container = container;
@@ -71,7 +70,6 @@ export class PlotContainer {
             this.renderer = new THREE.WebGLRenderer({ 
                 antialias: options.antialias ?? false, 
                 alpha: options.alpha ?? false, 
-                preserveDrawingBuffer: false, 
                 powerPreference: 'high-performance' 
             });
             this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -101,6 +99,35 @@ export class PlotContainer {
         }
     }
 
+    public addLinePlot(count: number, color: string | THREE.Color = '#00ff88') {
+        const plot = new LinePlot(count, new THREE.Color(color));
+        this.addPlot(plot);
+        return plot;
+    }
+
+    public addPointPlot(count: number, color: string | THREE.Color = '#00ff88') {
+        const plot = new PointPlot(count, new THREE.Color(color));
+        this.addPlot(plot);
+        return plot;
+    }
+
+    private addPlot(plot: Plot) {
+        this.plots.add(plot);
+        this.scene.add(plot.mesh);
+    }
+
+    public removePlot(plot: Plot) {
+        if (this.plots.has(plot)) {
+            this.scene.remove(plot.mesh);
+            plot.dispose();
+            this.plots.delete(plot);
+        }
+    }
+
+    public clear() {
+        this.plots.forEach(p => this.removePlot(p));
+    }
+
     private onResize() {
         const width = this.container.clientWidth;
         const height = this.container.clientHeight;
@@ -119,12 +146,9 @@ export class PlotContainer {
     public getViewportStats() {
         const width = this.container.clientWidth;
         const height = this.container.clientHeight;
-        
-        // In OrthographicCamera, the visible world units depend on left/right/top/bottom and zoom
         const zoom = this.camera.zoom;
         const visibleWidthWorld = (this.camera.right - this.camera.left) / zoom;
         const visibleHeightWorld = (this.camera.top - this.camera.bottom) / zoom;
-        
         const minX = this.camera.position.x + (this.camera.left / zoom);
         const maxX = this.camera.position.x + (this.camera.right / zoom);
         
@@ -154,6 +178,11 @@ export class PlotContainer {
 
     public render() {
         const time = performance.now();
+        const viewport = this.getViewportStats();
+
+        // Automatically update all managed plots
+        this.plots.forEach(plot => plot.update(time / 1000, viewport));
+
         if (this.onUpdate) {
             this.onUpdate(time);
         }
@@ -173,6 +202,7 @@ export class PlotContainer {
             cancelAnimationFrame(this.animationId);
         }
         this.resizeObserver.disconnect();
+        this.clear();
         
         if (!this.isExternalRenderer) {
             this.renderer.dispose();

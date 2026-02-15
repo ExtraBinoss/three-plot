@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import vertexShader from './line_vertex.glsl';
 import fragmentShader from './line_fragment.glsl';
 import { type PlotUpdateParams, type ViewportParams } from '../shared/types';
+import { type Plot } from '../PlotContainer';
 
 interface LinePlotUniforms {
     uTime: THREE.IUniform<number>;
@@ -19,15 +20,26 @@ interface LinePlotUniforms {
     uOffset: THREE.IUniform<THREE.Vector2>;
 }
 
-export class LinePlot {
+export class LinePlot implements Plot {
     private instancedMesh: THREE.InstancedMesh;
     private geometry: THREE.InstancedBufferGeometry;
     private material: THREE.ShaderMaterial;
+    private params: PlotUpdateParams;
 
     private readonly PLOT_WIDTH = 400.0;
 
     constructor(maxCount: number, baseColor: THREE.Color = new THREE.Color(0x00ff88)) {
-        // Base geometry for each segment: a quad from x=-0.5 to 0.5, y=-0.5 to 0.5
+        this.params = {
+            count: maxCount,
+            frequency: 0.1,
+            amplitude: 20,
+            presetIndex: 0,
+            color: baseColor.clone(),
+            lodFactor: 1.0,
+            pointSize: 2.0,
+            autoSubsampling: true
+        };
+
         const plane = new THREE.PlaneGeometry(1, 1);
         this.geometry = new THREE.InstancedBufferGeometry();
         this.geometry.index = plane.index;
@@ -43,9 +55,9 @@ export class LinePlot {
             uniforms: {
                 uTime: { value: 0 },
                 uCount: { value: Number(maxCount) },
-                uFrequency: { value: 0.1 },
-                uAmplitude: { value: 20 },
-                uPreset: { value: 0.0 },
+                uFrequency: { value: this.params.frequency },
+                uAmplitude: { value: this.params.amplitude },
+                uPreset: { value: Number(this.params.presetIndex) },
                 uColor: { value: baseColor.clone() },
                 uLodFactor: { value: 1.0 },
                 uResolution: { value: new THREE.Vector2(100, 100) },
@@ -73,7 +85,11 @@ export class LinePlot {
         }
     }
 
-    public update(time: number, params: PlotUpdateParams, viewport?: ViewportParams) {
+    public setParams(params: Partial<PlotUpdateParams>) {
+        this.params = { ...this.params, ...params };
+    }
+
+    public update(time: number, viewport?: ViewportParams) {
         const u = this.material.uniforms as unknown as LinePlotUniforms;
         if (!u) return;
 
@@ -81,33 +97,33 @@ export class LinePlot {
             u.uResolution.value.set(viewport.pixelWidth, viewport.pixelHeight);
         }
 
-        this.updateUniform(u.uTime, time);
-        this.updateUniform(u.uFrequency, params.frequency);
-        this.updateUniform(u.uAmplitude, params.amplitude);
-        this.updateUniform(u.uPreset, Number(params.presetIndex));
-        this.updateUniform(u.uLodFactor, params.lodFactor ?? 1.0);
-        this.updateUniform(u.uLineWidth, params.pointSize ?? 2.0);
+        const p = this.params;
+        const elapsed = p.autoUpdate !== false ? time : 0;
+
+        this.updateUniform(u.uTime, elapsed);
+        this.updateUniform(u.uFrequency, p.frequency);
+        this.updateUniform(u.uAmplitude, p.amplitude);
+        this.updateUniform(u.uPreset, Number(p.presetIndex));
+        this.updateUniform(u.uLodFactor, p.lodFactor ?? 1.0);
+        this.updateUniform(u.uLineWidth, p.pointSize ?? 2.0);
         
-        if (params.color !== undefined) {
-            u.uColor.value.set(params.color as any);
+        if (p.color !== undefined) {
+            u.uColor.value.set(p.color as any);
         }
 
-        if (params.borderColor !== undefined) {
-            u.uOutlineColor.value.set(params.borderColor as any);
+        if (p.borderColor !== undefined) {
+            u.uOutlineColor.value.set(p.borderColor as any);
         }
-        this.updateUniform(u.uOutlineWidth, params.borderWidth ?? 0.0);
-        this.updateUniform(u.uDashScale, params.dashScale ?? 0.0);
+        this.updateUniform(u.uOutlineWidth, p.borderWidth ?? 0.0);
+        this.updateUniform(u.uDashScale, p.dashScale ?? 0.0);
 
-        if (params.offset) {
-            u.uOffset.value.set(params.offset.x, params.offset.y);
-        } else {
-            u.uOffset.value.set(0, 0);
+        if (p.offset) {
+            u.uOffset.value.set(p.offset.x, p.offset.y);
         }
 
-        const effectiveCount = this.calculateEffectiveCount(params, viewport);
+        const effectiveCount = this.calculateEffectiveCount(p, viewport);
         this.updateUniform(u.uCount, effectiveCount);
         
-        // We need effectiveCount instances to draw effectiveCount points (actually N-1 segments)
         this.instancedMesh.count = Math.max(0, effectiveCount);
     }
 
@@ -130,5 +146,14 @@ export class LinePlot {
 
     public get mesh() {
         return this.instancedMesh;
+    }
+
+    public dispose() {
+        this.geometry.dispose();
+        if (Array.isArray(this.material)) {
+            this.material.forEach(m => m.dispose());
+        } else {
+            this.material.dispose();
+        }
     }
 }
