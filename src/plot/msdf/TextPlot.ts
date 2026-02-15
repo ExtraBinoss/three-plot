@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { MSDFText } from '../msdf/MSDFText';
+import { MSDFText } from './MSDFText';
 import { type Plot } from '../PlotContainer';
 
 export interface TextPlotParams {

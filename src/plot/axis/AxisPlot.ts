@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import vertexShader from './axis_vertex.glsl';
 import fragmentShader from './axis_fragment.glsl';
 import { type Plot } from '../PlotContainer';
-import { type TextPlot } from './TextPlot';
+import { type TextPlot } from '../msdf/TextPlot';
 
 export interface AxisPlotParams {
     color: string | THREE.Color;

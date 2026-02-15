@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { LinePlot } from './line/LinePlot';
 import { PointPlot } from './point/PointPlot';
-import { AxisPlot } from './shared/AxisPlot';
-import { TextPlot } from './shared/TextPlot';
+import { AxisPlot } from './axis/AxisPlot';
+import { TextPlot } from './msdf/TextPlot';
 
 export interface PlotContainerOptions {
     renderer?: THREE.WebGLRenderer;
