@@ -1,11 +1,26 @@
 {
   "name": "three-plot",
-  "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
+  "description": "High-performance Three.js plotting library using GPU instancing and shaders",
+  "main": "./dist/three-plot.umd.cjs",
+  "module": "./dist/three-plot.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/three-plot.js",
+      "require": "./dist/three-plot.umd.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "dev": "vite",
-    "build": "vue-tsc -b && vite build",
+    "build": "npm run build:lib && npm run build:app",
+    "build:lib": "vite build --config vite.config.lib.ts",
+    "build:app": "vue-tsc -b && vite build",
     "preview": "vite preview"
   },
   "devDependencies": {

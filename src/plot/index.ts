@@ -3,6 +3,7 @@ export * from './PlotContainer';
 export * from './point/PointPlot';
 export * from './line/LinePlot';
 export * from './axis/AxisPlot';
+export * from './axis/LegendPlot';
 export * from './msdf/TextPlot';
 export * from './shared/types';
 export * from './msdf/MSDFText';

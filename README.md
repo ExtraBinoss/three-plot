@@ -1,3 +1,5 @@
+# 🎮 [Interactive Playground](https://binos.github.io/three-plot/)
+
 # ThreePlot
 
 A lightweight, high-performance GPU-accelerated data visualization library for the web, powered by Three.js.
@@ -27,30 +29,34 @@ import { ThreePlot } from 'three-plot';
 
 const container = ThreePlot.init(document.getElementById('plot-container'));
 
+// Add an Axis
+container.axis('#ffffff')
+  .ticks(50, 8)
+  .subTicks(5)
+  .thickness(1.5);
+
 // Add a line plot with 100,000 points
 const myLine = container.line(100000, '#00ff88')
   .amplitude(50)
   .frequency(0.02)
   .preset(4);
-
-// Add a point plot on the same canvas
-const myPoints = container.point(500000, '#ff4400')
-  .size(2.0)
-  .adaptive(true)
-  .offset(0, -100);
 ```
 
-### Chaining & Updates
+## 🔧 Shaders & Custom Signals
 
+ThreePlot uses external GLSL shaders bundled at build time. If you are consuming the library and want to use custom shaders or modify existing ones, ensure your build tool (like Vite or Webpack) can handle `.glsl` imports.
+
+In a Vite project, we recommend `vite-plugin-glsl`:
 ```typescript
-// Update parameters on the fly
-myLine.amplitude(70).color('#ff00ff').offset(10, 20);
+import glsl from 'vite-plugin-glsl';
+export default { plugins: [glsl()] };
+```
 
-// Unified parameter object also supported
-myPoints.setParams({
-  count: 1000000,
-  autoCulling: true
-});
+### Custom Presets on-the-fly
+You can register your own GPU signals without re-building:
+```typescript
+container.registerPreset('MyWave', 'sin(t + x * 0.1) * uAmplitude');
+myLine.preset(8); // Custom presets start at index 8
 ```
 
 ## ✅ What it does well
@@ -58,15 +64,7 @@ myPoints.setParams({
 - Visualizing datasets from 10k to 10M+ points at 60 FPS.
 - Multi-plot overlays on a single WebGL context.
 - Flexible coordinate system with built-in zoom and pan.
-
-## ❌ What it is NOT (yet)
-- Not a general-purpose charting library (no automatic axes, labels, or legends out of the box).
-- Not designed for 3D scatter plots (currently optimized for 2D data visualization in a 3D engine).
-- No built-in data connectors (you provide the logic/presets for now).
-
-## 🔧 Extensibility
-
-ThreePlot is built with a Registry/Factory pattern. You can implement the `Plot` interface to create your own GPU-accelerated visualizations (e.g., area plots, heatmaps) and register them into the `PlotContainer`.
+- Built-in Axes and MSDF Labels for performance.
 
 ## 📦 Project Structure
 - `src/plot/PlotContainer.ts`: The orchestrator and scene manager.

@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { LinePlot } from './line/LinePlot';
 import { PointPlot } from './point/PointPlot';
 import { AxisPlot } from './axis/AxisPlot';
+import { LegendPlot } from './axis/LegendPlot';
 import { TextPlot } from './msdf/TextPlot';
 
 export interface PlotContainerOptions {
@@ -26,7 +27,7 @@ export interface Plot<T = any> {
     mesh: THREE.Object3D;
 }
 
-export type PlotType = 'line' | 'point' | 'axis' | 'text';
+export type PlotType = 'line' | 'point' | 'axis' | 'text' | 'legend';
 
 export class PlotContainer {
     public scene: THREE.Scene;
@@ -127,6 +128,8 @@ export class PlotContainer {
             plot = new PointPlot(countOrColor, new THREE.Color(color || '#00ff88'));
         } else if (type === 'axis') {
             plot = new AxisPlot(countOrColor || '#ffffff');
+        } else if (type === 'legend') {
+            plot = new LegendPlot();
         } else if (type === 'text') {
             // Lower default capacity: starting at 100 is enough with auto-grow
             plot = new TextPlot(countOrColor || 100);
@@ -150,6 +153,7 @@ export class PlotContainer {
     public line(count: number, color?: string | THREE.Color) { return this.add<LinePlot>('line', count, color); }
     public point(count: number, color?: string | THREE.Color) { return this.add<PointPlot>('point', count, color); }
     public axis(color?: string | THREE.Color) { return this.add<AxisPlot>('axis', color); }
+    public legend() { return this.add<LegendPlot>('legend', null); }
     public text(capacity?: number) { return this.add<TextPlot>('text', capacity); }
 
     public remove(plot: Plot) {

@@ -30,7 +30,7 @@ const plotOptions = {
 };
 
 const params = reactive({
-  count: 100000, 
+  count: 1000, 
   preset: 'noise',
   presetIndex: 6,
   frequency: 0.05,
@@ -45,17 +45,21 @@ const params = reactive({
   showAxis: true,
   showLabels: true,
   axisColor: '#ffffff',
-  axisThickness: 1.5,
+  axisThickness: 0.1,
   subTicks: 5,
   labelColor: '#888888',
   labelPrecision: 0,
   adaptive: false,
+  showLegend: true,
+  legendSide: 'right' as 'left' | 'right' | 'both',
+  legendPrecision: 1,
   customGLSL: "sin(t * 10.0) * cos(x * 0.01) * uAmplitude"
 });
 
 let containerInstance: PlotContainer | null = null;
 let activePlot: LinePlot | PointPlot | null = null;
 let activeAxis: AxisPlot | null = null;
+let activeLegend: any = null;
 let textLayer: TextPlot | null = null;
 let gui: GUI | null = null;
 let presetControl: any = null;
@@ -129,6 +133,17 @@ const rebuildScene = () => {
       activeAxis = null;
   }
 
+  // 1.5 Setup Legend
+  if (params.showLegend && textLayer) {
+      activeLegend = containerInstance.legend()
+                    .use(textLayer)
+                    .color(params.labelColor)
+                    .precision(params.legendPrecision)
+                    .side(params.legendSide);
+  } else {
+      activeLegend = null;
+  }
+
   // 2. Setup Plot
   if (params.mode === 'Lines') {
     activePlot = containerInstance.line(params.count, params.color);
@@ -169,10 +184,19 @@ const syncParams = () => {
                     .precision(params.labelPrecision);
       }
   }
+
+  if (activeLegend) {
+      const halfW = params.width * 0.5;
+      activeLegend.rangeX(-halfW, halfW)
+                  .rangeY(-params.amplitude, params.amplitude)
+                  .color(params.labelColor)
+                  .precision(params.legendPrecision)
+                  .side(params.legendSide);
+  }
 };
 
 watch(
-  () => ({ mode: params.mode, count: params.count, showAxis: params.showAxis }),
+  () => ({ mode: params.mode, count: params.count, showAxis: params.showAxis, showLegend: params.showLegend }),
   () => {
     rebuildScene();
   }
@@ -195,7 +219,9 @@ watch(
     labelColor: params.labelColor,
     labelPrecision: params.labelPrecision,
     presetIndex: params.presetIndex,
-    showLabels: params.showLabels
+    showLabels: params.showLabels,
+    legendSide: params.legendSide,
+    legendPrecision: params.legendPrecision
   }),
   () => {
     syncParams();
@@ -237,6 +263,11 @@ const setupGui = () => {
   folderAxis.add(params, 'subTicks', 0, 10, 1).name('Sub Ticks');
   folderAxis.addColor(params, 'labelColor').name('Label Color');
   folderAxis.add(params, 'labelPrecision', 0, 5, 1).name('Precision');
+
+  const folderLegend = gui.addFolder('Legend (Min/Max)');
+  folderLegend.add(params, 'showLegend').name('Show Legend');
+  folderLegend.add(params, 'legendSide', ['left', 'right', 'both']).name('Position');
+  folderLegend.add(params, 'legendPrecision', 0, 5, 1).name('Decimals');
 };
 
 onMounted(setupGui);
