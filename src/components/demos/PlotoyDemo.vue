@@ -61,6 +61,11 @@
 
       <div class="footer">
         <p>Built-in: x, t, sin, cos, tan, floor, ceil, abs, min, max, sqrt, pow, noise, smoothstep</p>
+        <div class="project-links">
+          <a href="https://github.com/ExtraBinoss/three-plot" target="_blank">GitHub</a>
+          <a href="https://www.npmjs.com/package/@extrabinoss/three-plot" target="_blank">NPM</a>
+          <a href="https://extrabinoss.github.io/three-plot/" target="_blank">Docs</a>
+        </div>
         <p class="hint">Middle-click to pan • Scroll to zoom</p>
       </div>
     </div>
@@ -403,6 +408,23 @@ onUnmounted(() => {});
 .control-row span { width: 40px; color: #555; font-family: monospace; text-align: right; }
 
 .footer { margin-top: 20px; font-size: 0.65rem; color: #222; }
+
+.project-links {
+  margin-top: 10px;
+  display: flex;
+  gap: 15px;
+}
+
+.project-links a {
+  color: #444;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+.project-links a:hover {
+  color: #00ccff;
+}
 
 ::-webkit-scrollbar { width: 3px; }
 ::-webkit-scrollbar-thumb { background: #222; }

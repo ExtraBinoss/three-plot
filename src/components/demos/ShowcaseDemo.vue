@@ -13,6 +13,11 @@
         <div class="stat-row"><span>Device Load:</span> <b>{{ (frameTime / 16.6 * 100).toFixed(0) }}%</b></div>
       </div>
       <div class="hint">{{ params.mode }} Engine Active</div>
+      <div class="project-links">
+        <a href="https://github.com/ExtraBinoss/three-plot" target="_blank">GitHub</a>
+        <a href="https://www.npmjs.com/package/@extrabinoss/three-plot" target="_blank">NPM</a>
+        <a href="https://extrabinoss.github.io/three-plot/" target="_blank">Docs</a>
+      </div>
     </div>
   </div>
 </template>
@@ -299,4 +304,24 @@ onUnmounted(() => gui?.destroy());
 .stat-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 5px; color: #aaa; }
 .stat-row b { color: #00ccff; font-family: 'JetBrains Mono', monospace; }
 .hint { font-size: 9px; color: #444; margin-top: 15px; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; }
+.project-links {
+  margin-top: 15px;
+  display: flex;
+  gap: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 15px;
+  pointer-events: auto;
+}
+.project-links a {
+  color: #666;
+  text-decoration: none;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: color 0.2s;
+}
+.project-links a:hover {
+  color: #00ccff;
+}
 </style>

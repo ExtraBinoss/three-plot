@@ -6,6 +6,15 @@ A lightweight, high-performance GPU-accelerated data visualization library for t
 
 ThreePlot is designed for real-time visualization of massive datasets (millions of points) where standard SVG or Canvas-based solutions fail.
 
+[![NPM Version](https://img.shields.io/npm/v/@extrabinoss/three-plot)](https://www.npmjs.com/package/@extrabinoss/three-plot)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.MD)
+
+## 🔗 Links
+
+- **NPM Package**: [@extrabinoss/three-plot](https://www.npmjs.com/package/@extrabinoss/three-plot)
+- **Interactive Docs & Demo**: [Live Website](https://extrabinoss.github.io/three-plot/)
+- **Source Code**: [GitHub Repository](https://github.com/ExtraBinoss/three-plot)
+
 ## 🚀 Key Performance Features
 
 - **GPU Subsampling**: Smart data reduction performed on the GPU to maintain high FPS regardless of total point count.
@@ -58,38 +67,23 @@ const container = ThreePlot.init(element, {
 });
 ```
 
-- **Default Font**: You can find a pre-configured font (WorkSans-Regular) in the `public/fonts/` directory of this repository.
-- **Custom Fonts**: You can generate your own MSDF fonts using the [MSDF BMFont Web Generator](https://msdf-bmfont.donmccurdy.com/). Make sure to export in **JSON** format.
-
 ## 🔧 Shaders & Custom Signals
 
-ThreePlot uses external GLSL shaders bundled at build time. If you are consuming the library and want to use custom shaders or modify existing ones, ensure your build tool (like Vite or Webpack) can handle `.glsl` imports.
-
-In a Vite project, we recommend `vite-plugin-glsl`:
-```typescript
-import glsl from 'vite-plugin-glsl';
-export default { plugins: [glsl()] };
-```
+ThreePlot uses external GLSL shaders bundled at build time.
 
 ### Custom Presets on-the-fly
-You can register your own GPU signals without re-building:
+You can register your own GPU signals without re-building. This allows you to define complex math directly in GLSL:
 ```typescript
 container.registerPreset('MyWave', 'sin(t + x * 0.1) * uAmplitude');
 myLine.preset(8); // Custom presets start at index 8
 ```
 
-## ✅ What it does well
-- High-frequency real-time updates (oscilloscopes, heart-rate monitors).
-- Visualizing datasets from 10k to 10M+ points at 60 FPS.
-- Multi-plot overlays on a single WebGL context.
-- Flexible coordinate system with built-in zoom and pan.
-- Built-in Axes and MSDF Labels for performance.
+## 📈 Plotoy Demo
+Included in the project is **Plotoy**, a GraphToy-inspired interactive functional plotter. It supports:
+- Multiple function definitions (`f1`, `f2`...)
+- Cross-function referencing (e.g., `f2(x,t) = sin(f1(x,t))`)
+- Real-time GLSL parsing and injection
+- High-zoom mathematical precision
 
-## 📦 Project Structure
-- `src/plot/PlotContainer.ts`: The orchestrator and scene manager.
-- `src/plot/line/`: Instanced line engine with GLSL shaders.
-- `src/plot/point/`: GPU subsampled point engine with GLSL shaders.
-- `src/components/`: Vue.js showcase and demo components.
-
----
-Developed with performance and DX in mind.
+## 📄 License
+This project is licensed under the [MIT License](LICENSE.MD).
