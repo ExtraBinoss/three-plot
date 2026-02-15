@@ -97,6 +97,19 @@ export class PlotContainer {
         };
     }
 
+    public getRendererInfo() {
+        return {
+            frame: this.renderer.info.render.frame,
+            calls: this.renderer.info.render.calls,
+            points: this.renderer.info.render.points,
+            triangles: this.renderer.info.render.triangles,
+            memory: {
+                geometries: this.renderer.info.memory.geometries,
+                textures: this.renderer.info.memory.textures
+            }
+        };
+    }
+
     private animate() {
         this.animationId = requestAnimationFrame(() => this.animate());
         

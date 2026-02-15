@@ -4,7 +4,13 @@
     <div class="stats" v-if="stats">
       <div class="stat-group">
         <div class="stat-main">FPS: {{ fps }}</div>
-        <div class="stat-sub">Points: {{ params.count.toLocaleString() }}</div>
+        <div class="stat-sub">Total: {{ params.count.toLocaleString() }} pts</div>
+      </div>
+      <div class="stat-group profiling" v-if="gpuStats">
+        <div class="stat-row"><span>GPU Points:</span> <b>{{ gpuStats.points.toLocaleString() }}</b></div>
+        <div class="stat-row"><span>Actual Index:</span> <b>{{ params.actualPoints.toLocaleString() }}</b></div>
+        <div class="stat-row"><span>Draw Calls:</span> <b>{{ gpuStats.calls }}</b></div>
+        <div class="stat-row"><span>Memory:</span> <b>{{ gpuStats.memory.geometries }} geom</b></div>
       </div>
       <div class="hint">GPU-Powered 2D Plotter</div>
     </div>
@@ -41,6 +47,7 @@ let plotContainer: PlotContainer | null = null;
 let fastPlot: FastPlot | null = null;
 const stats = ref(true);
 const fps = ref(0);
+const gpuStats = ref<any>(null);
 let lastTime = performance.now();
 let frames = 0;
 
@@ -65,6 +72,9 @@ const onPlotReady = (container: PlotContainer) => {
       // Update actual points drawn info
       const drawRange = (fastPlot.mesh.geometry as THREE.BufferGeometry).drawRange;
       params.actualPoints = drawRange.count;
+      
+      // Update real GPU info from renderer
+      gpuStats.value = plotContainer.getRendererInfo();
     }
   };
 };
@@ -172,6 +182,16 @@ body, html, #app, .app {
     height: 1px;
     background: rgba(255, 255, 255, 0.05);
     margin: 4px 0;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 2px;
+}
+
+.stat-row b {
+    color: #fff;
 }
 
 .hint {
