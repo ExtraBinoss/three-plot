@@ -26,6 +26,7 @@ export class LinePlot implements Plot<LinePlotParams> {
     private geometry: THREE.InstancedBufferGeometry;
     private material: THREE.ShaderMaterial;
     private params: LinePlotParams;
+    private static customInjection: string = "";
 
     constructor(maxCount: number, baseColor: THREE.Color = new THREE.Color(0x00ff88)) {
         this.params = {
@@ -48,6 +49,12 @@ export class LinePlot implements Plot<LinePlotParams> {
         for (let i = 0; i < maxCount; i++) instanceIndices[i] = i;
         this.geometry.setAttribute('instanceIndex', new THREE.InstancedBufferAttribute(instanceIndices, 1));
 
+        const regex = /else\s*{\s*y\s*=\s*0\.0;\s*}/g;
+        const finalVertex = vertexShader.replace(
+            regex,
+            LinePlot.customInjection || "else { y = 0.0; }"
+        );
+
         this.material = new THREE.ShaderMaterial({
             uniforms: {
                 uTime: { value: 0 },
@@ -65,7 +72,7 @@ export class LinePlot implements Plot<LinePlotParams> {
                 uDashScale: { value: 0.0 },
                 uOffset: { value: new THREE.Vector2(0, 0) }
             },
-            vertexShader,
+            vertexShader: finalVertex,
             fragmentShader,
             transparent: false,
             depthWrite: false,
@@ -92,6 +99,27 @@ export class LinePlot implements Plot<LinePlotParams> {
     public width(val: number) { return this.setParams({ width: val }); }
     public offset(x: number, y: number) { return this.setParams({ offset: { x, y } }); }
     public preset(index: number) { return this.setParams({ presetIndex: index }); }
+
+    public injectPresets(customPresets: Map<string, string>) {
+        let customGlsl = "";
+        let index = 8;
+        customPresets.forEach((glsl, name) => {
+            customGlsl += `else if (preset == ${index}) { // ${name}\n y = ${glsl};\n }\n`;
+            index++;
+        });
+        customGlsl += "else { y = 0.0; }";
+
+        LinePlot.customInjection = customGlsl;
+
+        // Use regex to match the else block even with different whitespace
+        const regex = /else\s*{\s*y\s*=\s*0\.0;\s*}/g;
+        const newVertex = vertexShader.replace(regex, customGlsl);
+
+        if (this.material.vertexShader !== newVertex) {
+            this.material.vertexShader = newVertex;
+            this.material.needsUpdate = true;
+        }
+    }
 
     public update(time: number, viewport?: ViewportParams) {
         const u = this.material.uniforms as unknown as LinePlotUniforms;

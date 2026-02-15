@@ -43,6 +43,7 @@ export class PlotContainer {
     private plots: Set<Plot> = new Set();
     private textPlots: Set<TextPlot> = new Set();
     private fontConfig?: { json: string; texture: string };
+    private customPresets: Map<string, string> = new Map();
     
     public onUpdate?: (time: number) => void;
 
@@ -101,6 +102,22 @@ export class PlotContainer {
         }
     }
 
+    /**
+     * Registers a custom signal preset that can be used by Line and Point plots.
+     * @param name The name of the preset
+     * @param glsl The GLSL function body that returns a float. Available variables: t (time+freq), x (world pos).
+     */
+    public registerPreset(name: string, glsl: string) {
+        this.customPresets.set(name, glsl);
+        // Notify all plots that they might need to update their shaders
+        this.plots.forEach(p => {
+            if ((p as any).injectPresets) {
+                (p as any).injectPresets(this.customPresets);
+            }
+        });
+        return this;
+    }
+
     public add<T extends Plot>(type: PlotType, countOrColor: any, color?: string | THREE.Color): T {
         let plot: any;
         
@@ -121,6 +138,9 @@ export class PlotContainer {
 
         if (type !== 'text') {
             this.plots.add(plot);
+            if (plot.injectPresets && this.customPresets.size > 0) {
+                plot.injectPresets(this.customPresets);
+            }
         }
         
         this.scene.add(plot.mesh);

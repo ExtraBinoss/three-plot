@@ -23,6 +23,7 @@ export class PointPlot implements Plot<PointPlotParams> {
     private geometry: THREE.BufferGeometry;
     private material: THREE.ShaderMaterial;
     private params: PointPlotParams;
+    private static customInjection: string = "";
 
     constructor(maxCount: number, baseColor: THREE.Color = new THREE.Color(0x00ff88)) {
         this.params = {
@@ -55,6 +56,12 @@ export class PointPlot implements Plot<PointPlotParams> {
     }
 
     private initMaterial(maxCount: number, baseColor: THREE.Color): THREE.ShaderMaterial {
+        const regex = /else\s*{\s*y\s*=\s*0\.0;\s*}/g;
+        const finalVertex = vertexShader.replace(
+            regex,
+            PointPlot.customInjection || "else { y = 0.0; }"
+        );
+
         return new THREE.ShaderMaterial({
             uniforms: {
                 uTime: { value: 0 },
@@ -69,7 +76,7 @@ export class PointPlot implements Plot<PointPlotParams> {
                 uLodFactor: { value: 1.0 },
                 uOffset: { value: new THREE.Vector2(0, 0) }
             },
-            vertexShader,
+            vertexShader: finalVertex,
             fragmentShader,
             transparent: false,
             depthWrite: false,
@@ -91,6 +98,26 @@ export class PointPlot implements Plot<PointPlotParams> {
     public preset(index: number) { return this.setParams({ presetIndex: index }); }
     public size(val: number) { return this.setParams({ pointSize: val }); }
     public adaptive(val: boolean) { return this.setParams({ adaptive: val }); }
+
+    public injectPresets(customPresets: Map<string, string>) {
+        let customGlsl = "";
+        let index = 8;
+        customPresets.forEach((glsl, name) => {
+            customGlsl += `else if (preset == ${index}) { // ${name}\n y = ${glsl};\n }\n`;
+            index++;
+        });
+        customGlsl += "else { y = 0.0; }";
+
+        PointPlot.customInjection = customGlsl;
+
+        const regex = /else\s*{\s*y\s*=\s*0\.0;\s*}/g;
+        const newVertex = vertexShader.replace(regex, customGlsl);
+
+        if (this.material.vertexShader !== newVertex) {
+            this.material.vertexShader = newVertex;
+            this.material.needsUpdate = true;
+        }
+    }
 
     public update(time: number, viewport?: ViewportParams) {
         const u = this.material.uniforms as unknown as PointPlotUniforms;

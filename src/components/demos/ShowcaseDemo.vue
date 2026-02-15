@@ -23,7 +23,7 @@ import GUI from 'lil-gui';
 import PlotView from '../PlotView.vue';
 import { ThreePlot, type PlotContainer, type LinePlot, type PointPlot, type AxisPlot, type TextPlot } from '../../plot';
 
-const presets = ['sine', 'saw', 'zigzag', 'ramp', 'harmonic', 'chaos'];
+const presets = ['sine', 'saw', 'zigzag', 'ramp', 'harmonic', 'chaos', 'noise', 'noise3D'];
 
 const plotOptions = {
     font: { json: '/fonts/font.json', texture: '/fonts/font.png' }
@@ -31,8 +31,8 @@ const plotOptions = {
 
 const params = reactive({
   count: 100000, 
-  preset: 'harmonic',
-  presetIndex: 4,
+  preset: 'noise',
+  presetIndex: 6,
   frequency: 0.05,
   amplitude: 40,
   width: 400,
@@ -45,11 +45,12 @@ const params = reactive({
   showAxis: true,
   showLabels: true,
   axisColor: '#ffffff',
-  axisThickness: 0.5,
+  axisThickness: 1.5,
   subTicks: 5,
   labelColor: '#888888',
   labelPrecision: 0,
-  adaptive: false
+  adaptive: false,
+  customGLSL: "sin(t * 10.0) * cos(x * 0.01) * uAmplitude"
 });
 
 let containerInstance: PlotContainer | null = null;
@@ -57,6 +58,7 @@ let activePlot: LinePlot | PointPlot | null = null;
 let activeAxis: AxisPlot | null = null;
 let textLayer: TextPlot | null = null;
 let gui: GUI | null = null;
+let presetControl: any = null;
 
 const stats = ref(true);
 const fps = ref(0);
@@ -67,6 +69,7 @@ let frames = 0;
 
 const onPlotReady = (container: PlotContainer) => {
   containerInstance = container;
+  
   rebuildScene();
   
   container.onUpdate = (time) => {
@@ -88,6 +91,21 @@ const onPlotReady = (container: PlotContainer) => {
     
     frameTime.value = performance.now() - start;
   };
+};
+
+const addCustomPreset = () => {
+    if (!containerInstance) return;
+    const name = `Custom_${presets.length}`;
+    containerInstance.registerPreset(name, params.customGLSL);
+    presets.push(name);
+    
+    // Update GUI dropdown
+    if (presetControl) {
+        presetControl.options(presets);
+    }
+    
+    // Force a rebuild to ensure the new plot instance gets the injected shader
+    rebuildScene();
 };
 
 const rebuildScene = () => {
@@ -194,13 +212,17 @@ const setupGui = () => {
   folderEngine.add(params, 'autoCulling').name('Culling');
 
   const folderData = gui.addFolder('Data & Geometry');
-  folderData.add(params, 'preset', presets).name('Signal Preset').onChange((val: string) => {
+  presetControl = folderData.add(params, 'preset', presets).name('Signal Preset').onChange((val: string) => {
     params.presetIndex = presets.indexOf(val);
   });
   folderData.add(params, 'count', 100, 1000000, 100).name('Point Count');
   folderData.add(params, 'width', 100, 2000, 10).name('Plot Width (X)');
   folderData.add(params, 'amplitude', 1, 200, 1).name('Amplitude (Y)');
   folderData.add(params, 'frequency', 0.01, 0.5, 0.01);
+
+  const folderCustom = gui.addFolder('Custom Preset (GLSL)');
+  folderCustom.add(params, 'customGLSL').name('GLSL Code');
+  folderCustom.add({ add: addCustomPreset }, 'add').name('Register & Add Preset');
   
   const folderPlot = gui.addFolder('Plot Style');
   folderPlot.addColor(params, 'color').name('Main Color');

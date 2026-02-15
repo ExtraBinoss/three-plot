@@ -20,6 +20,30 @@ varying float vSegmentIndex;
 
 #define PI 3.14159265359
 
+float hash(float n) { return fract(sin(n) * 1e4); }
+float noise(float x) {
+    float i = floor(x);
+    float f = fract(x);
+    float u = f * f * (3.0 - 2.0 * f);
+    return mix(hash(i), hash(i + 1.0), u);
+}
+
+float hash3(vec3 p) {
+    p = fract(p * 0.3183099 + 0.1);
+    p *= 17.0;
+    return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+
+float noise3D(in vec3 x) {
+    vec3 i = floor(x);
+    vec3 f = fract(x);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(mix(hash3(i + vec3(0,0,0)), hash3(i + vec3(1,0,0)), f.x),
+                   mix(hash3(i + vec3(0,1,0)), hash3(i + vec3(1,1,0)), f.x), f.y),
+               mix(mix(hash3(i + vec3(0,0,1)), hash3(i + vec3(1,0,1)), f.x),
+                   mix(hash3(i + vec3(0,1,1)), hash3(i + vec3(1,1,1)), f.x), f.y), f.z);
+}
+
 vec4 getPlotPos(float index) {
     // Horizontal range from -width/2 to +width/2
     float halfW = uPlotWidth * 0.5;
@@ -38,6 +62,16 @@ vec4 getPlotPos(float index) {
     }
     else if (preset == 5) {
         y = (sin(t) * cos(t * 1.1 + uTime) * sin(t * 0.5 - uTime * 0.5)) * uAmplitude * 2.0;
+    }
+    else if (preset == 6) {
+        y = (noise(t) * 2.0 - 1.0) * uAmplitude;
+    }
+    else if (preset == 7) {
+        y = (noise3D(vec3(x * 0.05, t, uTime * 0.5)) * 2.0 - 1.0) * uAmplitude;
+    }
+    else {
+        // This part will be replaced by custom signal logic
+        y = 0.0;
     }
     
     return vec4(x + uOffset.x, y + uOffset.y, 0.0, 1.0);
