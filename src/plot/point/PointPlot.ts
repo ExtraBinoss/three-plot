@@ -88,6 +88,7 @@ export class PointPlot implements Plot {
 
     public setParams(params: Partial<PlotUpdateParams>) {
         this.params = { ...this.params, ...params };
+        return this;
     }
 
     public update(time: number, viewport?: ViewportParams) {

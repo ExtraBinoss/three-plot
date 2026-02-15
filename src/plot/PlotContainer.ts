@@ -19,8 +19,11 @@ export interface Plot {
     update(time: number, viewport: any): void;
     dispose(): void;
     getDrawStats(): { total: number, visible: number };
+    setParams(params: any): this;
     mesh: THREE.Object3D;
 }
+
+export type PlotType = 'line' | 'point';
 
 /**
  * Main entry point for the ThreePlot library.
@@ -100,33 +103,46 @@ export class PlotContainer {
         }
     }
 
-    public addLinePlot(count: number, color: string | THREE.Color = '#00ff88') {
-        const plot = new LinePlot(count, new THREE.Color(color));
-        this.addPlot(plot);
-        return plot;
-    }
+    /**
+     * Factory method to add a plot by type.
+     */
+    public add<T extends Plot>(type: PlotType, count: number, color: string | THREE.Color = '#00ff88'): T {
+        let plot: any;
+        const colorObj = new THREE.Color(color);
+        
+        if (type === 'line') {
+            plot = new LinePlot(count, colorObj);
+        } else if (type === 'point') {
+            plot = new PointPlot(count, colorObj);
+        } else {
+            throw new Error(`Unknown plot type: ${type}`);
+        }
 
-    public addPointPlot(count: number, color: string | THREE.Color = '#00ff88') {
-        const plot = new PointPlot(count, new THREE.Color(color));
-        this.addPlot(plot);
-        return plot;
-    }
-
-    private addPlot(plot: Plot) {
         this.plots.add(plot);
         this.scene.add(plot.mesh);
+        return plot as T;
     }
 
-    public removePlot(plot: Plot) {
+    // Sugar methods for better DX
+    public line(count: number, color?: string | THREE.Color) { return this.add<LinePlot>('line', count, color); }
+    public point(count: number, color?: string | THREE.Color) { return this.add<PointPlot>('point', count, color); }
+
+    public remove(plot: Plot) {
         if (this.plots.has(plot)) {
             this.scene.remove(plot.mesh);
             plot.dispose();
             this.plots.delete(plot);
         }
+        return this;
     }
 
     public clear() {
-        this.plots.forEach(p => this.removePlot(p));
+        this.plots.forEach(p => {
+            this.scene.remove(p.mesh);
+            p.dispose();
+        });
+        this.plots.clear();
+        return this;
     }
 
     private onResize() {
@@ -181,7 +197,6 @@ export class PlotContainer {
         const time = performance.now();
         const viewport = this.getViewportStats();
 
-        // Automatically update all managed plots
         this.plots.forEach(plot => plot.update(time / 1000, viewport));
 
         if (this.onUpdate) {

@@ -22,7 +22,7 @@
 import { ref, reactive, onMounted, onUnmounted, watch } from 'vue';
 import GUI from 'lil-gui';
 import PlotView from '../PlotView.vue';
-import { PlotContainer, type PlotUpdateParams } from '../../plot';
+import { ThreePlot, type PlotUpdateParams, type PlotContainer } from '../../plot';
 
 const presets = ['sine', 'saw', 'zigzag', 'ramp', 'harmonic', 'chaos'];
 
@@ -101,12 +101,12 @@ const rebuildPlot = () => {
     params.count = modeState.Lines.count;
     params.preset = modeState.Lines.preset;
     params.presetIndex = modeState.Lines.presetIndex;
-    activePlot = containerInstance.addLinePlot(params.count, params.color as string);
+    activePlot = containerInstance.line(params.count, params.color as string);
   } else {
     params.count = modeState.Points.count;
     params.preset = modeState.Points.preset;
     params.presetIndex = modeState.Points.presetIndex;
-    activePlot = containerInstance.addPointPlot(params.count, params.color as string);
+    activePlot = containerInstance.point(params.count, params.color as string);
   }
   
   syncParams();

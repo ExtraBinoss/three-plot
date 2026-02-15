@@ -42,10 +42,10 @@ let redPlot: any, greenPlot: any, bluePlot: any;
 const onPlotReady = (container: PlotContainer) => {
   containerInstance = container;
   
-  // Clean API: Just add plots to the container
-  redPlot = container.addLinePlot(pointCount, '#ff4466');
-  greenPlot = container.addLinePlot(pointCount, '#44ff88');
-  bluePlot = container.addLinePlot(pointCount, '#44aaff');
+  // Chainable / Sugar API
+  redPlot = container.line(pointCount, '#ff4466');
+  greenPlot = container.line(pointCount, '#44ff88');
+  bluePlot = container.line(pointCount, '#44aaff');
   
   updatePlots();
 };

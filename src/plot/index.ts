@@ -1,14 +1,22 @@
+import { PlotContainer, type PlotContainerOptions } from './PlotContainer';
 export * from './PlotContainer';
 export * from './point/PointPlot';
 export * from './line/LinePlot';
 export * from './shared/types';
 
-import { PlotContainer } from './PlotContainer';
-import type { PlotContainerOptions } from './PlotContainer';
-
 /**
- * Helper to quickly initialize a plot in a container.
+ * Main Library Entry Point
  */
-export function createPlot(element: HTMLElement, options?: PlotContainerOptions): PlotContainer {
-    return new PlotContainer(element, options);
-}
+export const ThreePlot = {
+    /**
+     * Initializes a new PlotContainer in the given element.
+     */
+    init(element: HTMLElement, options?: PlotContainerOptions): PlotContainer {
+        return new PlotContainer(element, options);
+    },
+
+    /**
+     * Version info
+     */
+    version: '1.2.0'
+};
