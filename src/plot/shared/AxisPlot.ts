@@ -16,6 +16,7 @@ export interface AxisPlotParams {
     labelSize: number;
     labelColor: string | THREE.Color;
     showLabels: boolean;
+    thickness: number;
 }
 
 interface AxisPlotUniforms {
@@ -26,6 +27,7 @@ interface AxisPlotUniforms {
     uRangeX: THREE.IUniform<THREE.Vector2>;
     uRangeY: THREE.IUniform<THREE.Vector2>;
     uZoom: THREE.IUniform<number>;
+    uThickness: THREE.IUniform<number>;
 }
 
 export class AxisPlot implements Plot<AxisPlotParams> {
@@ -47,7 +49,8 @@ export class AxisPlot implements Plot<AxisPlotParams> {
             maxY: 50,
             labelSize: 0.06,
             labelColor: '#888888',
-            showLabels: false
+            showLabels: false,
+            thickness: 1.5
         };
 
         this.geometry = new THREE.PlaneGeometry(4000, 4000);
@@ -59,7 +62,8 @@ export class AxisPlot implements Plot<AxisPlotParams> {
                 uTickSize: { value: 8 },
                 uRangeX: { value: new THREE.Vector2(-200, 200) },
                 uRangeY: { value: new THREE.Vector2(-50, 50) },
-                uZoom: { value: 1.0 }
+                uZoom: { value: 1.0 },
+                uThickness: { value: 1.5 }
             },
             vertexShader,
             fragmentShader,
@@ -82,6 +86,7 @@ export class AxisPlot implements Plot<AxisPlotParams> {
     public ticks(step: number, size: number = 8) { return this.setParams({ tickStep: step, tickSize: size }); }
     public rangeY(min: number, max: number) { return this.setParams({ minY: min, maxY: max }); }
     public rangeX(min: number, max: number) { return this.setParams({ minX: min, maxX: max }); }
+    public thickness(val: number) { return this.setParams({ thickness: val }); }
     
     public labels(tp: TextPlot, size: number = 0.06, color: string | THREE.Color = '#888') {
         this.textEngine = tp;
@@ -100,6 +105,7 @@ export class AxisPlot implements Plot<AxisPlotParams> {
         this.updateUniform(u.uTickStep, p.tickStep);
         this.updateUniform(u.uTickSize, p.tickSize);
         this.updateUniform(u.uZoom, viewport.zoom);
+        this.updateUniform(u.uThickness, p.thickness);
         
         this.meshObj.position.x = viewport.minX + (viewport.maxX - viewport.minX) / 2;
         this.meshObj.position.y = p.offset.y; 

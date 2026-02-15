@@ -5,6 +5,7 @@ varying vec3 vWorldPos;
 uniform vec3 uColor;
 uniform vec2 uOffset;
 uniform float uZoom;
+uniform float uThickness;
 uniform float uTickStep;
 uniform float uTickSize;
 uniform vec2 uRangeX; // minX, maxX
@@ -14,9 +15,9 @@ void main() {
     vec2 relPos = vWorldPos.xy - uOffset;
     float plotHeight = uRangeY.y - uRangeY.x;
     
-    float maxWorldThickness = plotHeight * 0.02;
-    float lineThickness = min(1.5 / uZoom, maxWorldThickness);
-    float tickThickness = min(1.0 / uZoom, maxWorldThickness);
+    float maxWorldThickness = plotHeight * 0.05;
+    float lineThickness = min(uThickness / uZoom, maxWorldThickness);
+    float tickThickness = min((uThickness * 0.66) / uZoom, maxWorldThickness);
     
     // 1. Y-Axis at the LEFT (relPos.x == uRangeX.x)
     float yAxis = 0.0;

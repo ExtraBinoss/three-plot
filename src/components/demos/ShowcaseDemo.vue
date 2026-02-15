@@ -44,6 +44,7 @@ const params = reactive({
   autoCulling: true,
   showAxis: true,
   showLabels: true,
+  axisThickness: 1.5,
   adaptive: false
 });
 
@@ -130,7 +131,8 @@ const syncParams = () => {
   if (activeAxis) {
       const halfW = params.width * 0.5;
       activeAxis.rangeX(-halfW, halfW)
-                .rangeY(-params.amplitude * 1.2, params.amplitude * 1.2);
+                .rangeY(-params.amplitude * 1.2, params.amplitude * 1.2)
+                .thickness(params.axisThickness);
   }
 };
 
@@ -157,6 +159,7 @@ const setupGui = () => {
   const folderVisuals = gui.addFolder('Visuals');
   folderVisuals.add(params, 'showAxis').name('Show Axis');
   folderVisuals.add(params, 'showLabels').name('Show Labels');
+  folderVisuals.add(params, 'axisThickness', 0.1, 10, 0.1).name('Axis Thickness');
   folderVisuals.add(params, 'pointSize', 0.1, 10, 0.1).name('Size');
   folderVisuals.add(params, 'adaptive').name('Adaptive Size');
   folderVisuals.addColor(params, 'color').name('Color');
