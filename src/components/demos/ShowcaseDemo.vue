@@ -46,7 +46,9 @@ const params = reactive({
   showLabels: true,
   axisColor: '#ffffff',
   axisThickness: 0.5,
+  subTicks: 5,
   labelColor: '#888888',
+  labelPrecision: 0,
   adaptive: false
 });
 
@@ -98,7 +100,8 @@ const rebuildScene = async () => {
   if (params.showAxis) {
       activeAxis = containerInstance.axis(params.axisColor).ticks(50, 8);
       if (params.showLabels) {
-          activeAxis.labels(textLayer, 0.07, params.labelColor);
+          activeAxis.labels(textLayer, 0.07, params.labelColor)
+                    .precision(params.labelPrecision);
       }
   } else {
       activeAxis = null;
@@ -135,7 +138,8 @@ const syncParams = () => {
       activeAxis.rangeX(-halfW, halfW)
                 .rangeY(-params.amplitude * 1.2, params.amplitude * 1.2)
                 .thickness(params.axisThickness)
-                .color(params.axisColor);
+                .color(params.axisColor)
+                .subTicks(params.subTicks);
   }
 };
 
@@ -147,7 +151,8 @@ watch(params, (newVal, oldVal) => {
         newVal.showAxis !== oldVal.showAxis || 
         newVal.showLabels !== oldVal.showLabels ||
         newVal.axisColor !== oldVal.axisColor ||
-        newVal.labelColor !== oldVal.labelColor
+        newVal.labelColor !== oldVal.labelColor ||
+        newVal.labelPrecision !== oldVal.labelPrecision
     ) {
         rebuildScene();
     } else {
@@ -183,7 +188,9 @@ const setupGui = () => {
   folderAxis.add(params, 'showLabels').name('Show Labels');
   folderAxis.addColor(params, 'axisColor').name('Axis Color');
   folderAxis.add(params, 'axisThickness', 0.1, 10, 0.1).name('Axis Thickness');
+  folderAxis.add(params, 'subTicks', 0, 10, 1).name('Sub Ticks');
   folderAxis.addColor(params, 'labelColor').name('Label Color');
+  folderAxis.add(params, 'labelPrecision', 0, 5, 1).name('Precision');
 };
 
 onMounted(setupGui);

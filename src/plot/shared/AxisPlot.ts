@@ -9,6 +9,8 @@ export interface AxisPlotParams {
     offset: { x: number, y: number };
     tickStep: number;
     tickSize: number;
+    subTicks: number;
+    subTickSize: number;
     minX: number;
     maxX: number;
     minY: number;
@@ -16,6 +18,7 @@ export interface AxisPlotParams {
     labelSize: number;
     labelColor: string | THREE.Color;
     showLabels: boolean;
+    labelPrecision: number;
     thickness: number;
 }
 
@@ -24,6 +27,8 @@ interface AxisPlotUniforms {
     uOffset: THREE.IUniform<THREE.Vector2>;
     uTickStep: THREE.IUniform<number>;
     uTickSize: THREE.IUniform<number>;
+    uSubTicks: THREE.IUniform<number>;
+    uSubTickSize: THREE.IUniform<number>;
     uRangeX: THREE.IUniform<THREE.Vector2>;
     uRangeY: THREE.IUniform<THREE.Vector2>;
     uZoom: THREE.IUniform<number>;
@@ -43,6 +48,8 @@ export class AxisPlot implements Plot<AxisPlotParams> {
             offset: { x: 0, y: 0 },
             tickStep: 50,
             tickSize: 8,
+            subTicks: 0,
+            subTickSize: 4,
             minX: -200,
             maxX: 200,
             minY: -50,
@@ -50,6 +57,7 @@ export class AxisPlot implements Plot<AxisPlotParams> {
             labelSize: 0.06,
             labelColor: '#888888',
             showLabels: false,
+            labelPrecision: 0,
             thickness: 1.5
         };
 
@@ -60,6 +68,8 @@ export class AxisPlot implements Plot<AxisPlotParams> {
                 uOffset: { value: new THREE.Vector2(0, 0) },
                 uTickStep: { value: 50 },
                 uTickSize: { value: 8 },
+                uSubTicks: { value: 0 },
+                uSubTickSize: { value: 4 },
                 uRangeX: { value: new THREE.Vector2(-200, 200) },
                 uRangeY: { value: new THREE.Vector2(-50, 50) },
                 uZoom: { value: 1.0 },
@@ -84,6 +94,8 @@ export class AxisPlot implements Plot<AxisPlotParams> {
     public color(val: string | THREE.Color) { return this.setParams({ color: val }); }
     public offset(x: number, y: number) { return this.setParams({ offset: { x, y } }); }
     public ticks(step: number, size: number = 8) { return this.setParams({ tickStep: step, tickSize: size }); }
+    public subTicks(count: number, size: number = 4) { return this.setParams({ subTicks: count, subTickSize: size }); }
+    public precision(decimals: number) { return this.setParams({ labelPrecision: decimals }); }
     public rangeY(min: number, max: number) { return this.setParams({ minY: min, maxY: max }); }
     public rangeX(min: number, max: number) { return this.setParams({ minX: min, maxX: max }); }
     public thickness(val: number) { return this.setParams({ thickness: val }); }
@@ -104,6 +116,8 @@ export class AxisPlot implements Plot<AxisPlotParams> {
         u.uRangeY.value.set(p.minY, p.maxY);
         this.updateUniform(u.uTickStep, p.tickStep);
         this.updateUniform(u.uTickSize, p.tickSize);
+        this.updateUniform(u.uSubTicks, p.subTicks);
+        this.updateUniform(u.uSubTickSize, p.subTickSize);
         this.updateUniform(u.uZoom, viewport.zoom);
         this.updateUniform(u.uThickness, p.thickness);
         
@@ -121,21 +135,20 @@ export class AxisPlot implements Plot<AxisPlotParams> {
         const te = this.textEngine;
         const offX = p.offset.x;
         const offY = p.offset.y;
+        const prec = p.labelPrecision;
 
         // Y Labels (Left side)
-        // Correct labelX to follow offset and reduced gap to 4 units
         const labelX = p.minX + offX - 4;
-        te.add(p.maxY.toFixed(0), labelX, offY + p.maxY, p.labelSize, p.labelColor, "right");
-        te.add("0", labelX, offY, p.labelSize, p.labelColor, "right");
-        te.add(p.minY.toFixed(0), labelX, offY + p.minY, p.labelSize, p.labelColor, "right");
+        te.add(p.maxY.toFixed(prec), labelX, offY + p.maxY, p.labelSize, p.labelColor, "right");
+        te.add((0).toFixed(prec), labelX, offY, p.labelSize, p.labelColor, "right");
+        te.add(p.minY.toFixed(prec), labelX, offY + p.minY, p.labelSize, p.labelColor, "right");
 
         // X Labels (Bottom ticks)
-        // Reduced gap to 8 units below the axis
         const step = p.tickStep;
         const startX = Math.ceil(p.minX / step) * step;
         for (let x = startX; x <= p.maxX; x += step) {
             if (Math.abs(x - p.minX) < 10) continue;
-            te.add(x.toString(), x + offX, offY - 8, p.labelSize * 0.8, p.labelColor, "center");
+            te.add(x.toFixed(prec), x + offX, offY - 8, p.labelSize * 0.8, p.labelColor, "center");
         }
     }
 
