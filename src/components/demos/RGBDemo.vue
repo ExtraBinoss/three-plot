@@ -40,12 +40,11 @@ const spread = ref(150);
 const textStats = reactive({ total: 0, visible: 0 });
 
 const plotOptions = {
-    font: {
-        json: '/fonts/font.json',
-        texture: '/fonts/font.png'
+    font: { 
+        json: 'fonts/font.json',
+        texture: 'fonts/font.png'
     }
 };
-
 let containerInstance: PlotContainer | null = null;
 let redPlot: LinePlot, greenPlot: LinePlot, bluePlot: LinePlot;
 let redAxis: AxisPlot, greenAxis: AxisPlot, blueAxis: AxisPlot;

@@ -27,7 +27,9 @@ npm install @extrabinoss/three-plot
 ```typescript
 import { ThreePlot } from '@extrabinoss/three-plot';
 
-const container = ThreePlot.init(document.getElementById('plot-container'));
+const container = ThreePlot.init(document.getElementById('plot-container'), {
+  font: { json: '/fonts/font.json', texture: '/fonts/font.png' }
+});
 
 // Add an Axis
 container.axis('#ffffff')
@@ -41,6 +43,23 @@ const myLine = container.line(100000, '#00ff88')
   .frequency(0.02)
   .preset(4);
 ```
+
+### 🔡 Fonts Configuration (MSDF)
+
+ThreePlot uses **Multi-channel Signed Distance Fields (MSDF)** for high-performance text rendering.
+
+To use labels, you must provide a font configuration during initialization:
+```typescript
+const container = ThreePlot.init(element, {
+  font: {
+    json: '/fonts/font.json',
+    texture: '/fonts/font.png'
+  }
+});
+```
+
+- **Default Font**: You can find a pre-configured font (WorkSans-Regular) in the `public/fonts/` directory of this repository.
+- **Custom Fonts**: You can generate your own MSDF fonts using the [MSDF BMFont Web Generator](https://msdf-bmfont.donmccurdy.com/). Make sure to export in **JSON** format.
 
 ## 🔧 Shaders & Custom Signals
 

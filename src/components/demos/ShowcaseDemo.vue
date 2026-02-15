@@ -26,7 +26,7 @@ import { type PlotContainer, type LinePlot, type PointPlot, type AxisPlot, type 
 const presets = ['sine', 'saw', 'zigzag', 'ramp', 'harmonic', 'chaos', 'noise', 'noise3D'];
 
 const plotOptions = {
-    font: { json: '/fonts/font.json', texture: '/fonts/font.png' }
+    font: { json: 'fonts/font.json', texture: 'fonts/font.png' }
 };
 
 const params = reactive({
