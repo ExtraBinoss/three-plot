@@ -24,7 +24,6 @@ import GUI from 'lil-gui';
 import PlotView from './components/PlotView.vue';
 import { PlotContainer, FastPlot, InstancedPlot, LinePlot } from './plot';
 import * as THREE from 'three';
-import { Line2 } from 'three/addons/lines/Line2.js';
 
 const presets = ['sine', 'saw', 'zigzag', 'ramp'];
 
@@ -80,8 +79,6 @@ const onPlotReady = (container: PlotContainer) => {
         params.actualPoints = (mesh.geometry as THREE.BufferGeometry).drawRange.count;
       } else if (mesh instanceof THREE.InstancedMesh) {
         params.actualPoints = mesh.count;
-      } else if (mesh instanceof Line2) {
-        params.actualPoints = params.count; // Line2 draws all points currently
       }
       
       // Update real GPU info from renderer
@@ -105,10 +102,7 @@ const initPlot = () => {
   } else if (params.mode === 'Instanced') {
     currentPlot = new InstancedPlot(2000000, color);
   } else if (params.mode === 'Lines') {
-    // For Lines (Line2), the CPU->GPU transfer is more expensive.
-    // We cap it to a reasonable count if it's too high for stable 60fps.
-    const safeCount = Math.min(params.count, 100000);
-    currentPlot = new LinePlot(safeCount, color);
+    currentPlot = new LinePlot(2000000, color);
   }
   
   if (currentPlot) {

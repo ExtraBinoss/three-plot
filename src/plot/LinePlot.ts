@@ -1,80 +1,110 @@
 import * as THREE from 'three';
-import { Line2 } from 'three/addons/lines/Line2.js';
-import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
-import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
+import vertexShader from './shaders/line_vertex.glsl';
+import fragmentShader from './shaders/line_fragment.glsl';
 import type { FastPlotUpdateParams, ViewportParams } from './FastPlot';
 
+interface LinePlotUniforms {
+    uTime: THREE.IUniform<number>;
+    uCount: THREE.IUniform<number>;
+    uFrequency: THREE.IUniform<number>;
+    uAmplitude: THREE.IUniform<number>;
+    uPreset: THREE.IUniform<number>;
+    uColor: THREE.IUniform<THREE.Color>;
+    uLodFactor: THREE.IUniform<number>;
+    uResolution: THREE.IUniform<THREE.Vector2>;
+    uLineWidth: THREE.IUniform<number>;
+}
+
 export class LinePlot {
-    private line: Line2;
-    private geometry: LineGeometry;
-    private material: LineMaterial;
-    private positions: Float32Array;
+    private instancedMesh: THREE.InstancedMesh;
+    private geometry: THREE.InstancedBufferGeometry;
+    private material: THREE.ShaderMaterial;
 
     private readonly PLOT_WIDTH = 400.0;
-    private readonly PLOT_MIN = -200.0;
 
     constructor(maxCount: number, baseColor: THREE.Color = new THREE.Color(0x00ff88)) {
-        this.geometry = new LineGeometry();
+        // Base geometry for each segment: a quad from x=-0.5 to 0.5, y=-0.5 to 0.5
+        const plane = new THREE.PlaneGeometry(1, 1);
+        this.geometry = new THREE.InstancedBufferGeometry();
+        this.geometry.index = plane.index;
+        if (plane.attributes.position) this.geometry.setAttribute('position', plane.attributes.position);
         
-        // Initialize with zeros
-        this.positions = new Float32Array(maxCount * 3);
-        this.geometry.setPositions(this.positions);
+        const instanceIndices = new Float32Array(maxCount);
+        for (let i = 0; i < maxCount; i++) {
+            instanceIndices[i] = i;
+        }
+        this.geometry.setAttribute('instanceIndex', new THREE.InstancedBufferAttribute(instanceIndices, 1));
 
-        this.material = new LineMaterial({
-            color: baseColor.getHex(),
-            linewidth: 2, // in world units if dashed is false, or pixels? LineMaterial defaults to pixels
-            resolution: new THREE.Vector2(window.innerWidth, window.innerHeight),
+        this.material = new THREE.ShaderMaterial({
+            uniforms: {
+                uTime: { value: 0 },
+                uCount: { value: Number(maxCount) },
+                uFrequency: { value: 0.1 },
+                uAmplitude: { value: 20 },
+                uPreset: { value: 0.0 },
+                uColor: { value: baseColor.clone() },
+                uLodFactor: { value: 1.0 },
+                uResolution: { value: new THREE.Vector2(100, 100) },
+                uLineWidth: { value: 2.0 }
+            },
+            vertexShader,
+            fragmentShader,
             transparent: true,
             depthWrite: false,
             depthTest: false,
             blending: THREE.AdditiveBlending
         });
 
-        this.line = new Line2(this.geometry, this.material);
-        this.line.frustumCulled = false;
+        this.instancedMesh = new THREE.InstancedMesh(this.geometry, this.material, maxCount);
+        this.instancedMesh.frustumCulled = false;
+
+        const dummy = new THREE.Object3D();
+        dummy.updateMatrix();
+        for (let i = 0; i < maxCount; i++) {
+            this.instancedMesh.setMatrixAt(i, dummy.matrix);
+        }
     }
 
     public update(time: number, params: FastPlotUpdateParams, viewport?: ViewportParams) {
+        const u = this.material.uniforms as unknown as LinePlotUniforms;
+        if (!u) return;
+
         if (viewport) {
-            this.material.resolution.set(viewport.pixelWidth, viewport.pixelHeight);
+            u.uResolution.value.set(viewport.pixelWidth, viewport.pixelHeight);
         }
 
-        const count = params.count;
-        if (this.positions.length !== count * 3) {
-            this.positions = new Float32Array(count * 3);
-        }
+        this.updateUniform(u.uTime, time);
+        this.updateUniform(u.uFrequency, params.frequency);
+        this.updateUniform(u.uAmplitude, params.amplitude);
+        this.updateUniform(u.uPreset, Number(params.presetIndex));
+        this.updateUniform(u.uLodFactor, params.lodFactor ?? 1.0);
+        this.updateUniform(u.uLineWidth, params.pointSize ?? 2.0);
 
-        const freq = params.frequency;
-        const amp = params.amplitude;
-        const preset = Math.round(params.presetIndex);
-        const PI = Math.PI;
-
-        // Note: For Line2, CPU calculation is required if we use standard setPositions
-        // This is less performant than InstancedMesh GPU, but allows for connected lines
-        for (let i = 0; i < count; i++) {
-            const x = (i / Math.max(count - 1, 1)) * this.PLOT_WIDTH + this.PLOT_MIN;
-            let y = 0;
-            const t = x * freq + time;
-
-            if (preset === 0) y = Math.sin(t) * amp;
-            else if (preset === 1) y = ((t / (2 * PI) % 1 + 1) % 1 * 2 - 1) * amp;
-            else if (preset === 2) y = (Math.abs(((t / (2 * PI) % 1 + 1) % 1) * 2 - 1) * 2 - 1) * amp;
-            else if (preset === 3) y = (Math.floor((t / (2 * PI) % 1 + 1) % 1 + 0.5) % 2 * 2 - 1) * amp;
-
-            const idx = i * 3;
-            this.positions[idx] = x;
-            this.positions[idx + 1] = y;
-            this.positions[idx + 2] = 0;
-        }
-
-        this.geometry.setPositions(this.positions);
+        const effectiveCount = this.calculateEffectiveCount(params, viewport);
+        this.updateUniform(u.uCount, effectiveCount);
         
-        // Line2 doesn't have a 'count' or 'drawRange' in the same way easy to use for data reduction
-        // so we just resize the buffer or use the whole thing.
-        // For line rendering, we usually want all points.
+        // We need effectiveCount instances to draw effectiveCount points (actually N-1 segments)
+        this.instancedMesh.count = Math.max(0, effectiveCount);
+    }
+
+    private updateUniform<T>(uniform: THREE.IUniform<T>, value: T) {
+        if (uniform.value !== value) {
+            uniform.value = value;
+        }
+    }
+
+    private calculateEffectiveCount(params: FastPlotUpdateParams, viewport?: ViewportParams): number {
+        const useSmartSub = params.autoSubsampling ?? true;
+        if (!useSmartSub || !viewport) {
+            return params.count;
+        }
+        const ppp = params.pointsPerPixel || 2.0;
+        const visibilityRatio = this.PLOT_WIDTH / Math.max(viewport.maxX - viewport.minX, 0.001);
+        const totalNeeded = Math.ceil(viewport.pixelWidth * ppp * visibilityRatio);
+        return Math.min(params.count, totalNeeded);
     }
 
     public get mesh() {
-        return this.line;
+        return this.instancedMesh;
     }
 }
