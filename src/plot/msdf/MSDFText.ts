@@ -105,16 +105,15 @@ export class MSDFText {
         }
     }
 
-    public addText(text: string, x: number, y: number, scale: number = 0.1, color: string | THREE.Color = '#ffffff', align: 'left' | 'center' | 'right' = 'left'): TextInstance {
-        const instance = {
+    public addText(text: string, x: number, y: number, scale: number = 0.1, color: string | THREE.Color = '#ffffff', align: 'left' | 'center' | 'right' = 'left'): this {
+        this.instances.push({
             text,
             position: new THREE.Vector3(x, y, 0),
             scale,
             color: new THREE.Color(color as any),
             align
-        };
-        this.instances.push(instance);
-        return instance;
+        });
+        return this;
     }
 
     public clear() {
@@ -144,6 +143,8 @@ export class MSDFText {
                 if (glyphIndex >= this.capacity) break;
 
                 const charStr = inst.text[i];
+                if (charStr === undefined) continue; // TS safety for unchecked indexed access
+
                 const char = this.charMap.get(charStr);
                 if (!char) {
                     if (charStr === ' ') cursorX += 20; 
@@ -177,8 +178,10 @@ export class MSDFText {
     private calculateWidth(text: string): number {
         if (!this.fontData) return 0;
         let w = 0;
-        for (const char of text) {
-            w += this.charMap.get(char)?.xadvance ?? 20;
+        for (let i = 0; i < text.length; i++) {
+            const charStr = text[i];
+            if (charStr === undefined) continue;
+            w += this.charMap.get(charStr)?.xadvance ?? 20;
         }
         return w;
     }

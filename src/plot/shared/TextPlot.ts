@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { MSDFText, type TextInstance } from '../msdf/MSDFText';
+import { MSDFText } from '../msdf/MSDFText';
 import { type Plot } from '../PlotContainer';
 
 export interface TextPlotParams {
@@ -19,10 +19,11 @@ export class TextPlot implements Plot<TextPlotParams> {
     }
 
     /**
-     * Adds a text string to the plot.
+     * Adds a text string to the plot. Returns this for chaining.
      */
-    public add(text: string, x: number, y: number, scale: number = 0.1, color: string | THREE.Color = '#ffffff', align: 'left' | 'center' | 'right' = 'left'): TextInstance {
-        return this.engine.addText(text, x, y, scale, color, align);
+    public add(text: string, x: number, y: number, scale: number = 0.1, color: string | THREE.Color = '#ffffff', align: 'left' | 'center' | 'right' = 'left'): this {
+        this.engine.addText(text, x, y, scale, color, align);
+        return this;
     }
 
     public setParams(params: Partial<TextPlotParams>): this {
@@ -30,9 +31,7 @@ export class TextPlot implements Plot<TextPlotParams> {
         return this;
     }
 
-    public update(_time: number, viewport: any) {
-        // Here we could apply global offset to all text instances if needed, 
-        // but for now TextPlot is a world-space container.
+    public update(_time: number, _viewport: any) {
         this.engine.update();
     }
 
