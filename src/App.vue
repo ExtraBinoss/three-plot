@@ -105,18 +105,33 @@ const initPlot = () => {
   plotContainer.scene.add(currentPlot.mesh);
 };
 
+
 const setupGui = () => {
   const gui = new GUI();
   
-  const folderData = gui.addFolder('Data & Performance');
-  folderData.add(params, 'mode', ['Points', 'Instanced']).name('Rendering Mode').onChange(() => {
+  const updateVisibility = () => {
+    const isPoints = params.mode === 'Points';
+    cullingController.show(isPoints);
+  };
+
+  gui.add(params, 'mode', ['Points', 'Instanced']).name('Rendering Mode').onChange((mode: string) => {
+    if (mode === 'Instanced') {
+      params.autoSubsampling = false;
+    }
     initPlot();
+    updateVisibility();
   });
+
+  const folderData = gui.addFolder('Data & Performance');
   folderData.add(params, 'count', 100, 2000000, 100).name('Total Data Points');
-  folderData.add(params, 'autoSubsampling').name('Smart Subsampling');
-  folderData.add(params, 'autoCulling').name('Frustum Culling');
-  folderData.add(params, 'pointsPerPixel', 0.5, 10, 0.5).name('Density (pts/px)');
-  folderData.add(params, 'actualPoints').name('Points Rendered').disable();
+  
+  // Folder for optimizations (Subsampling)
+  const subsamplingFolder = folderData.addFolder('Data Optimizations');
+  subsamplingFolder.add(params, 'autoSubsampling').name('Smart Subsampling').listen();
+  subsamplingFolder.add(params, 'pointsPerPixel', 0.5, 10, 0.5).name('Density (pts/px)');
+  
+  const cullingController = folderData.add(params, 'autoCulling').name('Frustum Culling');
+  folderData.add(params, 'actualPoints').name('Visible Elements').disable();
 
   const folderPlot = gui.addFolder('Plot Settings');
   folderPlot.add(params, 'preset', presets).name('Preset').onChange((val: string) => {
@@ -135,6 +150,8 @@ const setupGui = () => {
     }
   });
   gui.add(params, 'autoUpdate').name('Auto Update');
+
+  updateVisibility();
 };
 
 onMounted(() => {
