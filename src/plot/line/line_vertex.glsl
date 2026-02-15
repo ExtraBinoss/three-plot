@@ -8,6 +8,7 @@ uniform float uTime;
 uniform float uCount;
 uniform float uFrequency;
 uniform float uAmplitude;
+uniform float uPlotWidth; // NEW
 uniform float uPreset;
 uniform float uLodFactor;
 uniform vec2 uOffset;
@@ -20,7 +21,10 @@ varying float vSegmentIndex;
 #define PI 3.14159265359
 
 vec4 getPlotPos(float index) {
-    float x = (index / max(uCount - 1.0, 1.0)) * 400.0 - 200.0;
+    // Horizontal range from -width/2 to +width/2
+    float halfW = uPlotWidth * 0.5;
+    float x = (index / max(uCount - 1.0, 1.0)) * uPlotWidth - halfW;
+    
     float t = x * uFrequency + uTime;
     int preset = int(uPreset + 0.5);
     float y = 0.0;
@@ -62,12 +66,8 @@ void main() {
     vec2 dir = normalize(screenP1 - screenP0);
     vec2 normal = vec2(-dir.y, dir.x);
     
-    // Logic: the line should not be wider than its own amplitude in screen space
-    // Let's calculate the height of the plot in pixels roughly
     vec4 clipAmp = mvp * vec4(0.0, uAmplitude, 0.0, 0.0);
     float ampPixels = length((clipAmp.xy / clipAmp.w) * uResolution * 0.5);
-    
-    // Clamp the line width to never exceed 20% of the signal's amplitude on screen
     float effectiveLineWidth = min(uLineWidth, max(ampPixels * 0.2, 0.5));
     
     float t = position.x + 0.5;

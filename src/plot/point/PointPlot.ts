@@ -9,6 +9,7 @@ interface PointPlotUniforms {
     uCount: THREE.IUniform<number>;
     uFrequency: THREE.IUniform<number>;
     uAmplitude: THREE.IUniform<number>;
+    uPlotWidth: THREE.IUniform<number>;
     uPreset: THREE.IUniform<number>;
     uPointSize: THREE.IUniform<number>;
     uColor: THREE.IUniform<THREE.Color>;
@@ -23,14 +24,12 @@ export class PointPlot implements Plot<PointPlotParams> {
     private material: THREE.ShaderMaterial;
     private params: PointPlotParams;
 
-    private readonly PLOT_WIDTH = 400.0;
-    private readonly PLOT_MIN = -200.0;
-
     constructor(maxCount: number, baseColor: THREE.Color = new THREE.Color(0x00ff88)) {
         this.params = {
             count: maxCount,
             frequency: 0.1,
             amplitude: 20,
+            width: 400,
             presetIndex: 0,
             color: baseColor.clone(),
             lodFactor: 1.0,
@@ -62,6 +61,7 @@ export class PointPlot implements Plot<PointPlotParams> {
                 uCount: { value: Number(maxCount) },
                 uFrequency: { value: this.params.frequency },
                 uAmplitude: { value: this.params.amplitude },
+                uPlotWidth: { value: 400 },
                 uPreset: { value: Number(this.params.presetIndex) },
                 uPointSize: { value: this.params.pointSize },
                 uColor: { value: baseColor.clone() },
@@ -78,9 +78,6 @@ export class PointPlot implements Plot<PointPlotParams> {
         });
     }
 
-    /**
-     * Fluent API
-     */
     public setParams(params: Partial<PointPlotParams>): this {
         this.params = { ...this.params, ...params };
         return this;
@@ -89,6 +86,7 @@ export class PointPlot implements Plot<PointPlotParams> {
     public color(val: string | THREE.Color) { return this.setParams({ color: val }); }
     public amplitude(val: number) { return this.setParams({ amplitude: val }); }
     public frequency(val: number) { return this.setParams({ frequency: val }); }
+    public width(val: number) { return this.setParams({ width: val }); }
     public offset(x: number, y: number) { return this.setParams({ offset: { x, y } }); }
     public preset(index: number) { return this.setParams({ presetIndex: index }); }
     public size(val: number) { return this.setParams({ pointSize: val }); }
@@ -104,6 +102,7 @@ export class PointPlot implements Plot<PointPlotParams> {
         this.updateUniform(u.uTime, elapsed);
         this.updateUniform(u.uFrequency, p.frequency);
         this.updateUniform(u.uAmplitude, p.amplitude);
+        this.updateUniform(u.uPlotWidth, p.width ?? 400);
         this.updateUniform(u.uPreset, Number(p.presetIndex));
         this.updateUniform(u.uLodFactor, p.lodFactor ?? 1.0);
         this.updateUniform(u.uAdaptive, p.adaptive ? 1.0 : 0.0);
@@ -127,14 +126,17 @@ export class PointPlot implements Plot<PointPlotParams> {
     private calculateEffectiveCount(params: PointPlotParams, viewport?: ViewportParams): number {
         if (!(params.autoSubsampling ?? true) || !viewport) return params.count;
         const ppp = params.pointsPerPixel || 2.0;
-        const visibilityRatio = this.PLOT_WIDTH / Math.max(viewport.maxX - viewport.minX, 0.001);
+        const width = params.width ?? 400;
+        const visibilityRatio = width / Math.max(viewport.maxX - viewport.minX, 0.001);
         return Math.min(params.count, Math.ceil(viewport.pixelWidth * ppp * visibilityRatio));
     }
 
     private calculateDrawRange(effectiveCount: number, params: PointPlotParams, viewport?: ViewportParams) {
         if (!(params.autoCulling ?? true) || !viewport) return { drawStart: 0, drawCount: effectiveCount };
-        const startPct = (viewport.minX - this.PLOT_MIN) / this.PLOT_WIDTH;
-        const endPct = (viewport.maxX - this.PLOT_MIN) / this.PLOT_WIDTH;
+        const width = params.width ?? 400;
+        const minX = -(width * 0.5);
+        const startPct = (viewport.minX - minX) / width;
+        const endPct = (viewport.maxX - minX) / width;
         const startIndex = Math.max(0, Math.floor(startPct * (effectiveCount - 1)));
         const endIndex = Math.min(effectiveCount - 1, Math.ceil(endPct * (effectiveCount - 1)));
         return { drawStart: startIndex, drawCount: Math.max(1, endIndex - startIndex + 1) };
@@ -147,13 +149,9 @@ export class PointPlot implements Plot<PointPlotParams> {
 
     public get mesh() { return this.points; }
     public getDrawStats() { return { total: this.params.count, visible: this.geometry.drawRange.count }; }
-
     public dispose() {
         this.geometry.dispose();
-        if (Array.isArray(this.material)) {
-            this.material.forEach(m => m.dispose());
-        } else {
-            this.material.dispose();
-        }
+        if (Array.isArray(this.material)) this.material.forEach(m => m.dispose());
+        else this.material.dispose();
     }
 }

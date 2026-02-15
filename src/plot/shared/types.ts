@@ -12,6 +12,7 @@ export interface BasePlotParams {
     count: number;
     frequency: number;
     amplitude: number;
+    width: number; // ADDED
     presetIndex: number;
     color?: string | THREE.Color;
     lodFactor?: number;
@@ -33,5 +34,5 @@ export interface PointPlotParams extends BasePlotParams {
     pointsPerPixel?: number;
 }
 
-// Unified type for internal updates (kept for compatibility with existing update logic)
+// Unified type for internal updates
 export type PlotUpdateParams = LinePlotParams & PointPlotParams;

@@ -4,6 +4,7 @@ uniform float uTime;
 uniform float uCount;
 uniform float uFrequency;
 uniform float uAmplitude;
+uniform float uPlotWidth; // NEW
 uniform float uPreset;
 uniform float uPointSize;
 uniform float uLodFactor;
@@ -13,14 +14,13 @@ uniform vec2 uOffset;
 #define PI 3.14159265359
 
 void main() {
-    // GPU LOD Logic - Skip the vertex if outside the LOD range
     if (pIndex > uCount * uLodFactor) {
         gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
         return;
     }
 
-    // Horizontal range from -200 to 200
-    float x = (pIndex / max(uCount - 1.0, 1.0)) * 400.0 - 200.0;
+    float halfW = uPlotWidth * 0.5;
+    float x = (pIndex / max(uCount - 1.0, 1.0)) * uPlotWidth - halfW;
     float y = 0.0;
     
     int preset = int(uPreset + 0.5);
@@ -40,9 +40,6 @@ void main() {
 
     vec4 worldPos = vec4(x + uOffset.x, y + uOffset.y, 0.0, 1.0);
     vec4 mvPosition = modelViewMatrix * worldPos;
-    
-    // Adaptive size (if uAdaptive is 1.0, we could add logic here, 
-    // but PointPlot.ts already calculates uPointSize adaptively)
     gl_PointSize = uPointSize;
     gl_Position = projectionMatrix * mvPosition;
 }
