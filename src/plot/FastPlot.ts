@@ -70,6 +70,7 @@ export class FastPlot {
         pixelWidth: number;
         minX: number;
         maxX: number;
+        zoom: number;
     }) {
         const u = this.material.uniforms as unknown as FastPlotUniforms;
         if (!u) return;
@@ -94,21 +95,27 @@ export class FastPlot {
         const useSmartCull = params.autoCulling ?? true;
         const ppp = params.pointsPerPixel || 2.0;
 
+        // Plot constants
+        const plotWidth = 400.0;
+        const plotMin = -200.0;
+
         if (useSmartSub && viewport) {
-            // Cap the count to roughly 2-3 points per pixel for the whole dataset range
-            // This is "subsampling" the mathematical function.
-            const maxNeeded = Math.ceil(viewport.pixelWidth * ppp);
-            effectiveCount = Math.min(params.count, maxNeeded);
+            // Smart Subsampling: We want 'ppp' points per pixel in the VISIBLE area.
+            // If the whole plot is 400 units and we only see 40 units (10%), 
+            // we need 10x more points in total to maintain density in those 40 units.
+            const visibleWidthWorld = viewport.maxX - viewport.minX;
+            const visibilityRatio = plotWidth / Math.max(visibleWidthWorld, 0.001);
+            
+            const neededInView = viewport.pixelWidth * ppp;
+            const totalNeeded = Math.ceil(neededInView * visibilityRatio);
+            
+            effectiveCount = Math.min(params.count, totalNeeded);
         }
 
         let drawStart = 0;
         let drawCount = effectiveCount;
 
         if (useSmartCull && viewport) {
-            // Range is -200 to 200 (Total 400)
-            const plotWidth = 400.0;
-            const plotMin = -200.0;
-
             const startPct = (viewport.minX - plotMin) / plotWidth;
             const endPct = (viewport.maxX - plotMin) / plotWidth;
 
@@ -125,16 +132,17 @@ export class FastPlot {
 
         let pSize = params.pointSize || 5.0;
         if (isAdaptive) {
-            // Use effectiveCount for size calculation to keep consistent look
-            pSize = Math.max(0.5, pSize * Math.sqrt(100000 / effectiveCount));
+            // Stability fix: base the adaptive size on the TOTAL requested count, 
+            // not the subsampled effectiveCount. This keeps size constant during zoom.
+            pSize = Math.max(0.1, pSize * Math.sqrt(100000 / params.count));
         }
+        
         if (u.uPointSize.value !== pSize) u.uPointSize.value = pSize;
         
         if (u.uCount.value !== effectiveCount) {
              u.uCount.value = Number(effectiveCount);
         }
         
-        // Geometry draw range controls what is actually sent to GPU
         this.geometry.setDrawRange(drawStart, drawCount);
     }
 
