@@ -66,8 +66,9 @@ const setupGui = () => {
   gui.add(params, 'amplitude', 1, 100, 1).name('Amplitude');
   gui.add(params, 'pointSize', 0.1, 10, 0.1).name('Point Size');
   gui.addColor(params, 'color').name('Color').onChange((val: string) => {
-    if (fastPlot?.mesh.material) {
-      (fastPlot.mesh.material as THREE.ShaderMaterial).uniforms.uColor.value.set(val);
+    const material = fastPlot?.mesh?.material as THREE.ShaderMaterial | undefined;
+    if (material && material.uniforms?.uColor) {
+      material.uniforms.uColor.value.set(val);
     }
   });
   gui.add(params, 'autoUpdate').name('Auto Update');
@@ -87,7 +88,11 @@ const animate = () => {
   if (fastPlot) {
       const elapsed = params.autoUpdate ? time / 1000 : 0;
       fastPlot.update(elapsed, params);
-      profiling.value = fastPlot.profiling;
+      
+      // Update profiling only once per second to reduce reactivity overhead
+      if (time >= lastTime + 1000) {
+        profiling.value = fastPlot.profiling;
+      }
   }
 };
 

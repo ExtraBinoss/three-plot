@@ -3,15 +3,23 @@ import vertexShader from './shaders/vertex.glsl';
 import fragmentShader from './shaders/fragment.glsl';
 import { Profiler, type ProfilingData } from './Profiler';
 
+interface FastPlotUniforms {
+    uTime: THREE.IUniform<number>;
+    uCount: THREE.IUniform<number>;
+    uFrequency: THREE.IUniform<number>;
+    uAmplitude: THREE.IUniform<number>;
+    uPreset: THREE.IUniform<number>;
+    uPointSize: THREE.IUniform<number>;
+    uColor: THREE.IUniform<THREE.Color>;
+}
+
 export class FastPlot {
     private points: THREE.Points;
-    private maxCount: number;
     private geometry: THREE.BufferGeometry;
     private material: THREE.ShaderMaterial;
     private profiler: Profiler;
 
     constructor(maxCount: number, baseColor: THREE.Color = new THREE.Color(0x00ff88)) {
-        this.maxCount = maxCount;
         this.profiler = new Profiler();
         
         this.geometry = new THREE.BufferGeometry();
@@ -46,13 +54,18 @@ export class FastPlot {
         this.geometry.setDrawRange(0, maxCount);
     }
 
-    public update(time: number, params: any) {
+    public update(time: number, params: {
+        frequency: number;
+        amplitude: number;
+        presetIndex: number;
+        pointSize?: number;
+        count: number;
+    }) {
         this.profiler.beginUpdate();
 
-        const u = this.material.uniforms;
+        const u = this.material.uniforms as unknown as FastPlotUniforms;
         if (!u) return;
 
-        // Dirty checks to avoid redundant uniform writes
         if (u.uTime.value !== time) u.uTime.value = time;
         if (u.uFrequency.value !== params.frequency) u.uFrequency.value = params.frequency;
         if (u.uAmplitude.value !== params.amplitude) u.uAmplitude.value = params.amplitude;
@@ -77,7 +90,8 @@ export class FastPlot {
 
     public get profiling(): ProfilingData {
         const data = this.profiler.current;
-        data.pointsCount = this.material.uniforms.uCount.value;
+        const u = this.material.uniforms as unknown as FastPlotUniforms;
+        data.pointsCount = u ? u.uCount.value : 0;
         return data;
     }
 }
