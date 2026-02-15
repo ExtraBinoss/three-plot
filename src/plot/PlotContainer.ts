@@ -76,14 +76,24 @@ export class PlotContainer {
             this.renderer = options.renderer;
             this.isExternalRenderer = true;
         } else {
-            this.renderer = new THREE.WebGLRenderer({ 
-                antialias: options.antialias ?? false, 
-                alpha: options.alpha ?? false, 
-                powerPreference: 'high-performance' 
-            });
-            this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            this.renderer.setSize(width, height);
-            this.container.appendChild(this.renderer.domElement);
+            try {
+                this.renderer = new THREE.WebGLRenderer({ 
+                    antialias: options.antialias ?? false, 
+                    alpha: options.alpha ?? false, 
+                    powerPreference: 'high-performance',
+                    failIfMajorPerformanceCaveat: false // Plus permissif pour les vieux drivers
+                });
+            } catch (e) {
+                console.error("ThreePlot: Failed to create WebGL context", e);
+                // Création d'un renderer vide/dummy ou throw une erreur claire
+                throw new Error("WebGL not supported or context creation failed");
+            }
+            
+            if (this.renderer) {
+                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                this.renderer.setSize(width, height);
+                this.container.appendChild(this.renderer.domElement);
+            }
         }
 
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
