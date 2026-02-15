@@ -16,6 +16,7 @@ interface FastPlotUniforms {
 
 export interface ViewportParams {
     pixelWidth: number;
+    pixelHeight: number;
     minX: number;
     maxX: number;
     zoom: number;

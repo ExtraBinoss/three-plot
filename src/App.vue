@@ -22,8 +22,9 @@
 import { ref, reactive, onMounted } from 'vue';
 import GUI from 'lil-gui';
 import PlotView from './components/PlotView.vue';
-import { PlotContainer, FastPlot, InstancedPlot } from './plot';
+import { PlotContainer, FastPlot, InstancedPlot, LinePlot } from './plot';
 import * as THREE from 'three';
+import { Line2 } from 'three/addons/lines/Line2.js';
 
 const presets = ['sine', 'saw', 'zigzag', 'ramp'];
 
@@ -46,7 +47,7 @@ const params = reactive({
 });
 
 let plotContainer: PlotContainer | null = null;
-let currentPlot: FastPlot | InstancedPlot | null = null;
+let currentPlot: FastPlot | InstancedPlot | LinePlot | null = null;
 const stats = ref(true);
 const fps = ref(0);
 const frameTime = ref(0);
@@ -76,9 +77,11 @@ const onPlotReady = (container: PlotContainer) => {
       // Update actual points drawn info
       const mesh = currentPlot.mesh;
       if (mesh instanceof THREE.Points) {
-        params.actualPoints = mesh.geometry.drawRange.count;
+        params.actualPoints = (mesh.geometry as THREE.BufferGeometry).drawRange.count;
       } else if (mesh instanceof THREE.InstancedMesh) {
         params.actualPoints = mesh.count;
+      } else if (mesh instanceof Line2) {
+        params.actualPoints = params.count; // Line2 draws all points currently
       }
       
       // Update real GPU info from renderer
@@ -95,16 +98,23 @@ const initPlot = () => {
     plotContainer.scene.remove(currentPlot.mesh);
   }
   
-  // High allocation for the webgl buffer, but we only draw what's needed
+  const color = new THREE.Color(params.color);
+  
   if (params.mode === 'Points') {
-    currentPlot = new FastPlot(2000000, new THREE.Color(params.color));
-  } else {
-    currentPlot = new InstancedPlot(2000000, new THREE.Color(params.color));
+    currentPlot = new FastPlot(2000000, color);
+  } else if (params.mode === 'Instanced') {
+    currentPlot = new InstancedPlot(2000000, color);
+  } else if (params.mode === 'Lines') {
+    // For Lines (Line2), the CPU->GPU transfer is more expensive.
+    // We cap it to a reasonable count if it's too high for stable 60fps.
+    const safeCount = Math.min(params.count, 100000);
+    currentPlot = new LinePlot(safeCount, color);
   }
   
-  plotContainer.scene.add(currentPlot.mesh);
+  if (currentPlot) {
+    plotContainer.scene.add(currentPlot.mesh);
+  }
 };
-
 
 const setupGui = () => {
   const gui = new GUI();
@@ -112,10 +122,14 @@ const setupGui = () => {
   const updateVisibility = () => {
     const isPoints = params.mode === 'Points';
     cullingController.show(isPoints);
+    
+    // Subsampling is also less useful for Lines
+    const isLines = params.mode === 'Lines';
+    subsamplingFolder.show(!isLines);
   };
 
-  gui.add(params, 'mode', ['Points', 'Instanced']).name('Rendering Mode').onChange((mode: string) => {
-    if (mode === 'Instanced') {
+  gui.add(params, 'mode', ['Points', 'Instanced', 'Lines']).name('Rendering Mode').onChange((mode: string) => {
+    if (mode === 'Instanced' || mode === 'Lines') {
       params.autoSubsampling = false;
     }
     initPlot();
