@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import vertexShader from './vertex.glsl';
 import fragmentShader from './fragment.glsl';
+import { type PlotUpdateParams, type ViewportParams } from '../shared/types';
 
-interface FastPlotUniforms {
+interface PointPlotUniforms {
     uTime: THREE.IUniform<number>;
     uCount: THREE.IUniform<number>;
     uFrequency: THREE.IUniform<number>;
@@ -14,31 +15,7 @@ interface FastPlotUniforms {
     uLodFactor: THREE.IUniform<number>;
 }
 
-export interface ViewportParams {
-    pixelWidth: number;
-    pixelHeight: number;
-    minX: number;
-    maxX: number;
-    zoom: number;
-}
-
-export interface FastPlotUpdateParams {
-    frequency: number;
-    amplitude: number;
-    presetIndex: number;
-    pointSize?: number;
-    count: number;
-    adaptive?: boolean;
-    lodFactor?: number;
-    autoSubsampling?: boolean;
-    autoCulling?: boolean;
-    pointsPerPixel?: number;
-    borderColor?: string | THREE.Color;
-    borderWidth?: number;
-    dashScale?: number;
-}
-
-export class FastPlot {
+export class PointPlot {
     private points: THREE.Points;
     private geometry: THREE.BufferGeometry;
     private material: THREE.ShaderMaterial;
@@ -92,8 +69,8 @@ export class FastPlot {
         return points;
     }
 
-    public update(time: number, params: FastPlotUpdateParams, viewport?: ViewportParams) {
-        const u = this.material.uniforms as unknown as FastPlotUniforms;
+    public update(time: number, params: PlotUpdateParams, viewport?: ViewportParams) {
+        const u = this.material.uniforms as unknown as PointPlotUniforms;
         if (!u) return;
 
         // Basic Uniforms
@@ -129,7 +106,7 @@ export class FastPlot {
         }
     }
 
-    private calculateEffectiveCount(params: FastPlotUpdateParams, viewport?: ViewportParams): number {
+    private calculateEffectiveCount(params: PlotUpdateParams, viewport?: ViewportParams): number {
         const useSmartSub = params.autoSubsampling ?? true;
         if (!useSmartSub || !viewport) {
             return params.count;
@@ -145,7 +122,7 @@ export class FastPlot {
         return Math.min(params.count, totalNeeded);
     }
 
-    private calculateDrawRange(effectiveCount: number, params: FastPlotUpdateParams, viewport?: ViewportParams) {
+    private calculateDrawRange(effectiveCount: number, params: PlotUpdateParams, viewport?: ViewportParams) {
         const useSmartCull = params.autoCulling ?? true;
         
         if (!useSmartCull || !viewport) {
@@ -180,4 +157,3 @@ export class FastPlot {
         return this.points;
     }
 }
-

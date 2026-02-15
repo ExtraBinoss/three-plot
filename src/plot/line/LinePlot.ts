@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import vertexShader from './line_vertex.glsl';
 import fragmentShader from './line_fragment.glsl';
-import type { FastPlotUpdateParams, ViewportParams } from '../point/PointPlot';
+import { type PlotUpdateParams, type ViewportParams } from '../shared/types';
 
 interface LinePlotUniforms {
     uTime: THREE.IUniform<number>;
@@ -71,7 +71,7 @@ export class LinePlot {
         }
     }
 
-    public update(time: number, params: FastPlotUpdateParams, viewport?: ViewportParams) {
+    public update(time: number, params: PlotUpdateParams, viewport?: ViewportParams) {
         const u = this.material.uniforms as unknown as LinePlotUniforms;
         if (!u) return;
 
@@ -109,7 +109,7 @@ export class LinePlot {
         }
     }
 
-    private calculateEffectiveCount(params: FastPlotUpdateParams, viewport?: ViewportParams): number {
+    private calculateEffectiveCount(params: PlotUpdateParams, viewport?: ViewportParams): number {
         const useSmartSub = params.autoSubsampling ?? true;
         if (!useSmartSub || !viewport) {
             return params.count;

@@ -25,12 +25,12 @@
 import { ref, reactive, onMounted } from 'vue';
 import GUI from 'lil-gui';
 import PlotView from './components/PlotView.vue';
-import { PlotContainer, FastPlot, LinePlot } from './plot';
+import { PlotContainer, PointPlot, LinePlot, type PlotUpdateParams } from './plot';
 import * as THREE from 'three';
 
 const presets = ['sine', 'saw', 'zigzag', 'ramp', 'harmonic', 'chaos'];
 
-const params = reactive({
+const params = reactive<PlotUpdateParams & { preset: string, actualPoints: number, mode: 'Points' | 'Lines' }>({
   count: 1000, 
   preset: 'harmonic',
   presetIndex: 4,
@@ -58,7 +58,7 @@ const lerp = (current: number, target: number, speed: number) => {
 };
 
 let plotContainer: PlotContainer | null = null;
-let currentPlot: FastPlot | LinePlot | null = null;
+let currentPlot: PointPlot | LinePlot | null = null;
 const stats = ref(true);
 const fps = ref(0);
 const frameTime = ref(0);
@@ -85,11 +85,11 @@ const onPlotReady = (container: PlotContainer) => {
       const speed = 0.15; // Adjustment speed (0-1)
       smoothedParams.frequency = lerp(smoothedParams.frequency, params.frequency, speed);
       smoothedParams.amplitude = lerp(smoothedParams.amplitude, params.amplitude, speed);
-      smoothedParams.pointSize = lerp(smoothedParams.pointSize, params.pointSize, speed);
-      smoothedParams.lodFactor = lerp(smoothedParams.lodFactor, params.lodFactor, speed);
-      smoothedParams.borderWidth = lerp(smoothedParams.borderWidth, params.borderWidth, speed);
-      smoothedParams.dashScale = lerp(smoothedParams.dashScale, params.dashScale, speed);
-      smoothedParams.pointsPerPixel = lerp(smoothedParams.pointsPerPixel, params.pointsPerPixel, speed);
+      smoothedParams.pointSize = lerp(smoothedParams.pointSize!, params.pointSize!, speed);
+      smoothedParams.lodFactor = lerp(smoothedParams.lodFactor!, params.lodFactor!, speed);
+      smoothedParams.borderWidth = lerp(smoothedParams.borderWidth!, params.borderWidth!, speed);
+      smoothedParams.dashScale = lerp(smoothedParams.dashScale!, params.dashScale!, speed);
+      smoothedParams.pointsPerPixel = lerp(smoothedParams.pointsPerPixel!, params.pointsPerPixel!, speed);
       smoothedParams.presetIndex = lerp(smoothedParams.presetIndex, params.presetIndex, speed);
       
       // Sync non-smoothed/boolean parameters
@@ -140,7 +140,7 @@ const initPlot = () => {
   const capacity = params.count;
   
   if (params.mode === 'Points') {
-    currentPlot = new FastPlot(capacity, color);
+    currentPlot = new PointPlot(capacity, color);
   } else if (params.mode === 'Lines') {
     currentPlot = new LinePlot(capacity, color);
   }
@@ -162,8 +162,8 @@ const setupGui = () => {
     folderDecorative.show(isLines);
   };
 
-  gui.add(params, 'mode', ['Points', 'Instanced', 'Lines']).name('Rendering Mode').onChange((mode: string) => {
-    if (mode === 'Instanced' || mode === 'Lines') {
+  gui.add(params, 'mode', ['Points', 'Lines']).name('Rendering Mode').onChange((mode: string) => {
+    if (mode === 'Lines') {
       params.autoSubsampling = false;
     }
     initPlot();

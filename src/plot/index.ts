@@ -1,6 +1,7 @@
 export * from './PlotContainer';
 export * from './point/PointPlot';
 export * from './line/LinePlot';
+export * from './shared/types';
 
 import { PlotContainer } from './PlotContainer';
 import type { PlotContainerOptions } from './PlotContainer';
