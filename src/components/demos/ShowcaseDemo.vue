@@ -21,7 +21,7 @@
 import { ref, reactive, onMounted, onUnmounted, watch } from 'vue';
 import GUI from 'lil-gui';
 import PlotView from '../PlotView.vue';
-import { ThreePlot, type PlotContainer, type LinePlot, type PointPlot, type AxisPlot, type TextPlot } from '../../plot';
+import { type PlotContainer, type LinePlot, type PointPlot, type AxisPlot, type TextPlot } from '../../plot';
 
 const presets = ['sine', 'saw', 'zigzag', 'ramp', 'harmonic', 'chaos', 'noise', 'noise3D'];
 
