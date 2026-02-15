@@ -1,11 +1,21 @@
 <template>
   <div class="app">
     <PlotView @ready="onPlotReady" />
-    <div class="stats" v-if="stats">
-      <div>Points: {{ params.count.toLocaleString() }}</div>
-      <div>FPS: {{ fps }}</div>
+    <div class="stats" v-if="stats && profiling">
+      <div class="stat-group">
+        <div class="stat-main">FPS: {{ fps }}</div>
+        <div class="stat-sub">Points: {{ params.count.toLocaleString() }}</div>
+      </div>
+      
       <div v-if="profiling" class="profiling">
-        <div>Update: {{ profiling.updateMs }}ms</div>
+        <div>Total Frame: {{ profiling.frameMs.toFixed(2) }}ms</div>
+        <div>GPU Time: {{ profiling.gpuMs.toFixed(2) }}ms</div>
+        <div class="divider"></div>
+        <div>CPU Update: {{ profiling.updateMs.toFixed(2) }}ms</div>
+        <div>CPU Render: {{ profiling.renderMs.toFixed(2) }}ms</div>
+        <div class="divider"></div>
+        <div>Draw Calls: {{ profiling.drawCalls }}</div>
+        <div>Parsed Points: {{ profiling.points.toLocaleString() }}</div>
       </div>
       <div class="hint">GPU-Powered 2D Plotter</div>
     </div>
@@ -16,7 +26,7 @@
 import { ref, reactive, onMounted } from 'vue';
 import GUI from 'lil-gui';
 import PlotView from './components/PlotView.vue';
-import { PlotContainer, FastPlot } from './plot';
+import { PlotContainer, FastPlot, type ProfilingData } from './plot';
 import * as THREE from 'three';
 
 const presets = ['sine', 'saw', 'zigzag', 'ramp'];
@@ -28,6 +38,8 @@ const params = reactive({
   frequency: 0.1,
   amplitude: 20,
   pointSize: 2.0,
+  adaptive: true,
+  lodFactor: 1.0,
   color: '#00ff88',
   autoUpdate: true
 });
@@ -36,9 +48,7 @@ let plotContainer: PlotContainer | null = null;
 let fastPlot: FastPlot | null = null;
 const stats = ref(true);
 const fps = ref(0);
-const profiling = ref<any>(null);
-let lastTime = performance.now();
-let frames = 0;
+const profiling = ref<ProfilingData | null>(null);
 
 const onPlotReady = (container: PlotContainer) => {
   plotContainer = container;
@@ -52,7 +62,7 @@ const initPlot = () => {
     plotContainer.scene.remove(fastPlot.mesh);
   }
   
-  fastPlot = new FastPlot(1000000, new THREE.Color(params.color)); // Max capacity
+  fastPlot = new FastPlot(1000000, plotContainer.profiler, new THREE.Color(params.color));
   plotContainer.scene.add(fastPlot.mesh);
 };
 
@@ -64,7 +74,9 @@ const setupGui = () => {
   });
   gui.add(params, 'frequency', 0.01, 2, 0.01).name('Frequency');
   gui.add(params, 'amplitude', 1, 100, 1).name('Amplitude');
-  gui.add(params, 'pointSize', 0.1, 10, 0.1).name('Point Size');
+  gui.add(params, 'pointSize', 0.1, 10, 0.1).name('Base Point Size');
+  gui.add(params, 'adaptive').name('Adaptive Size');
+  gui.add(params, 'lodFactor', 0.01, 1.0, 0.01).name('GPU LOD Factor');
   gui.addColor(params, 'color').name('Color').onChange((val: string) => {
     const material = fastPlot?.mesh?.material as THREE.ShaderMaterial | undefined;
     if (material && material.uniforms?.uColor) {
@@ -77,22 +89,15 @@ const setupGui = () => {
 const animate = () => {
   requestAnimationFrame(animate);
   
-  frames++;
   const time = performance.now();
-  if (time >= lastTime + 1000) {
-    fps.value = Math.round((frames * 1000) / (time - lastTime));
-    lastTime = time;
-    frames = 0;
-  }
 
-  if (fastPlot) {
+  if (fastPlot && plotContainer) {
       const elapsed = params.autoUpdate ? time / 1000 : 0;
       fastPlot.update(elapsed, params);
       
-      // Update profiling only once per second to reduce reactivity overhead
-      if (time >= lastTime + 1000) {
-        profiling.value = fastPlot.profiling;
-      }
+      // Update profiling metrics
+      profiling.value = fastPlot.profiling;
+      fps.value = profiling.value.fps;
   }
 };
 
@@ -118,28 +123,54 @@ body, html, #app, .app {
   position: absolute;
   top: 10px;
   left: 10px;
-  background: rgba(0, 0, 0, 0.7);
-  padding: 12px;
-  border-radius: 8px;
-  font-family: monospace;
+  background: rgba(10, 10, 10, 0.85);
+  padding: 16px;
+  border-radius: 12px;
+  font-family: 'JetBrains Mono', monospace;
   pointer-events: none;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(12px);
+  min-width: 200px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.stat-group {
+    margin-bottom: 12px;
+}
+
+.stat-main {
+    font-size: 20px;
+    font-weight: 700;
+    color: #00ff88;
+}
+
+.stat-sub {
+    font-size: 12px;
+    color: #888;
 }
 
 .profiling {
-  margin: 5px 0;
-  padding-top: 5px;
+  margin: 10px 0;
+  padding-top: 10px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-  color: #00ff88;
-  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #ddd;
+  font-size: 11px;
+}
+
+.divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.05);
+    margin: 4px 0;
 }
 
 .hint {
-    font-size: 10px;
-    color: #666;
-    margin-top: 5px;
+    font-size: 9px;
+    color: #555;
+    margin-top: 10px;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 2px;
 }
 </style>

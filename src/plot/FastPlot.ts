@@ -11,6 +11,8 @@ interface FastPlotUniforms {
     uPreset: THREE.IUniform<number>;
     uPointSize: THREE.IUniform<number>;
     uColor: THREE.IUniform<THREE.Color>;
+    uAdaptive: THREE.IUniform<number>;
+    uLodFactor: THREE.IUniform<number>;
 }
 
 export class FastPlot {
@@ -19,8 +21,8 @@ export class FastPlot {
     private material: THREE.ShaderMaterial;
     private profiler: Profiler;
 
-    constructor(maxCount: number, baseColor: THREE.Color = new THREE.Color(0x00ff88)) {
-        this.profiler = new Profiler();
+    constructor(maxCount: number, profiler: Profiler, baseColor: THREE.Color = new THREE.Color(0x00ff88)) {
+        this.profiler = profiler;
         
         this.geometry = new THREE.BufferGeometry();
         
@@ -39,7 +41,9 @@ export class FastPlot {
                 uAmplitude: { value: 20 },
                 uPreset: { value: 0.0 }, 
                 uPointSize: { value: 5.0 },
-                uColor: { value: baseColor.clone() }
+                uColor: { value: baseColor.clone() },
+                uAdaptive: { value: 1.0 }, // 1.0 = on, 0.0 = off
+                uLodFactor: { value: 1.0 }
             },
             vertexShader,
             fragmentShader,
@@ -60,6 +64,8 @@ export class FastPlot {
         presetIndex: number;
         pointSize?: number;
         count: number;
+        adaptive?: boolean;
+        lodFactor?: number;
     }) {
         this.profiler.beginUpdate();
 
@@ -73,7 +79,17 @@ export class FastPlot {
         const presetVal = Number(params.presetIndex);
         if (u.uPreset.value !== presetVal) u.uPreset.value = presetVal;
 
-        const pSize = params.pointSize || 5.0;
+        const isAdaptive = params.adaptive ?? true;
+        u.uAdaptive.value = isAdaptive ? 1.0 : 0.0;
+        
+        const lod = params.lodFactor ?? 1.0;
+        if (u.uLodFactor.value !== lod) u.uLodFactor.value = lod;
+
+        let pSize = params.pointSize || 5.0;
+        if (isAdaptive) {
+            // formula: uPointSize = Math.max(1.0, baseSize * Math.sqrt(100_000 / count))
+            pSize = Math.max(0.5, pSize * Math.sqrt(100000 / params.count));
+        }
         if (u.uPointSize.value !== pSize) u.uPointSize.value = pSize;
         
         if (u.uCount.value !== params.count) {
