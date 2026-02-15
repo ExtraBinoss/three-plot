@@ -98,7 +98,11 @@ const rebuildScene = async () => {
 
   // 1. Setup Axis
   if (params.showAxis) {
-      activeAxis = containerInstance.axis(params.axisColor).ticks(50, 8);
+      activeAxis = containerInstance.axis(params.axisColor)
+                    .ticks(50, 8)
+                    .thickness(params.axisThickness)
+                    .subTicks(params.subTicks);
+                    
       if (params.showLabels) {
           activeAxis.labels(textLayer, 0.07, params.labelColor)
                     .precision(params.labelPrecision);
@@ -137,25 +141,28 @@ const syncParams = () => {
       const halfW = params.width * 0.5;
       activeAxis.rangeX(-halfW, halfW)
                 .rangeY(-params.amplitude * 1.2, params.amplitude * 1.2)
-                .thickness(params.axisThickness)
                 .color(params.axisColor)
+                .thickness(params.axisThickness)
                 .subTicks(params.subTicks);
+      
+      if (params.showLabels && textLayer) {
+          activeAxis.labels(textLayer, 0.07, params.labelColor)
+                    .precision(params.labelPrecision);
+      }
   }
 };
 
 watch(params, (newVal, oldVal) => {
-    // If structural params change, rebuild
+    // Structural changes that require clear() and new objects
     if (
         newVal.mode !== oldVal.mode || 
         newVal.count !== oldVal.count || 
         newVal.showAxis !== oldVal.showAxis || 
-        newVal.showLabels !== oldVal.showLabels ||
-        newVal.axisColor !== oldVal.axisColor ||
-        newVal.labelColor !== oldVal.labelColor ||
-        newVal.labelPrecision !== oldVal.labelPrecision
+        newVal.showLabels !== oldVal.showLabels
     ) {
         rebuildScene();
     } else {
+        // Visual/Numerical changes applied to existing objects
         syncParams();
     }
 }, { deep: true });
