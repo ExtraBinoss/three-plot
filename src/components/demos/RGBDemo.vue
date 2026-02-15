@@ -21,7 +21,7 @@
     </div>
 
     <div class="global-stats">
-      <div class="stat-pill">Managed API / Single Canvas</div>
+      <div class="stat-pill">Fluent API / Single Canvas</div>
       <div class="stat-pill">Total GPU Points: <b>{{ (pointCount * 3).toLocaleString() }}</b></div>
     </div>
   </div>
@@ -30,22 +30,33 @@
 <script setup lang="ts">
 import { ref, watch, onUnmounted } from 'vue';
 import PlotView from '../PlotView.vue';
-import { PlotContainer } from '../../plot';
+import { type PlotContainer, type LinePlot } from '../../plot';
 
 const pointCount = 20000;
 const speed = ref(1.0);
 const spread = ref(80);
 
 let containerInstance: PlotContainer | null = null;
-let redPlot: any, greenPlot: any, bluePlot: any;
+let redPlot: LinePlot, greenPlot: LinePlot, bluePlot: LinePlot;
 
 const onPlotReady = (container: PlotContainer) => {
   containerInstance = container;
   
-  // Chainable / Sugar API
-  redPlot = container.line(pointCount, '#ff4466');
-  greenPlot = container.line(pointCount, '#44ff88');
-  bluePlot = container.line(pointCount, '#44aaff');
+  // Showcase of the Fluent API Chaining
+  redPlot = container.line(pointCount, '#ff4466')
+    .amplitude(50)
+    .frequency(0.05)
+    .preset(4);
+
+  greenPlot = container.line(pointCount, '#44ff88')
+    .amplitude(50)
+    .frequency(0.05)
+    .preset(0);
+
+  bluePlot = container.line(pointCount, '#44aaff')
+    .amplitude(50)
+    .frequency(0.05)
+    .preset(5);
   
   updatePlots();
 };
@@ -54,22 +65,21 @@ const updatePlots = () => {
   if (!containerInstance) return;
 
   const s = spread.value;
-  const common = { count: pointCount, amplitude: 50, frequency: 0.05, pointSize: 2.5 };
-
-  redPlot.setParams({ ...common, presetIndex: 4, offset: { x: 0, y: s } });
-  greenPlot.setParams({ ...common, presetIndex: 0, offset: { x: 0, y: 0 } });
-  bluePlot.setParams({ ...common, presetIndex: 5, offset: { x: 0, y: -s } });
+  // Using the new fluent offset method
+  redPlot.offset(0, s);
+  greenPlot.offset(0, 0);
+  bluePlot.offset(0, -s);
 };
 
 // Sync spread changes
 watch(spread, updatePlots);
 
-// Animation speed is handled by each plot's internal time update
-// but we can scale the time passed to container if we want global speed control
-// For now, we'll let individual plots handle it or use onUpdate for global time scaling
+// Global animation speed control
 watch(speed, (newSpeed) => {
-    // In this API, we'll just update the plots
-    [redPlot, greenPlot, bluePlot].forEach(p => p.setParams({ autoUpdate: newSpeed > 0 }));
+    const active = newSpeed > 0;
+    redPlot.setParams({ autoUpdate: active });
+    greenPlot.setParams({ autoUpdate: active });
+    bluePlot.setParams({ autoUpdate: active });
 });
 
 onUnmounted(() => {

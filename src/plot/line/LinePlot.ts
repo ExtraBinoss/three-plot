@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import vertexShader from './line_vertex.glsl';
 import fragmentShader from './line_fragment.glsl';
-import { type PlotUpdateParams, type ViewportParams } from '../shared/types';
+import { type LinePlotParams, type ViewportParams } from '../shared/types';
 import { type Plot } from '../PlotContainer';
 
 interface LinePlotUniforms {
@@ -20,11 +20,11 @@ interface LinePlotUniforms {
     uOffset: THREE.IUniform<THREE.Vector2>;
 }
 
-export class LinePlot implements Plot {
+export class LinePlot implements Plot<LinePlotParams> {
     private instancedMesh: THREE.InstancedMesh;
     private geometry: THREE.InstancedBufferGeometry;
     private material: THREE.ShaderMaterial;
-    private params: PlotUpdateParams;
+    private params: LinePlotParams;
 
     private readonly PLOT_WIDTH = 400.0;
 
@@ -36,8 +36,7 @@ export class LinePlot implements Plot {
             presetIndex: 0,
             color: baseColor.clone(),
             lodFactor: 1.0,
-            pointSize: 2.0,
-            autoSubsampling: true
+            pointSize: 2.0
         };
 
         const plane = new THREE.PlaneGeometry(1, 1);
@@ -85,10 +84,20 @@ export class LinePlot implements Plot {
         }
     }
 
-    public setParams(params: Partial<PlotUpdateParams>) {
+    /**
+     * Fluent API for parameters
+     */
+    public setParams(params: Partial<LinePlotParams>): this {
         this.params = { ...this.params, ...params };
         return this;
     }
+
+    // Specific fluent shortcuts
+    public color(val: string | THREE.Color) { return this.setParams({ color: val }); }
+    public amplitude(val: number) { return this.setParams({ amplitude: val }); }
+    public frequency(val: number) { return this.setParams({ frequency: val }); }
+    public offset(x: number, y: number) { return this.setParams({ offset: { x, y } }); }
+    public preset(index: number) { return this.setParams({ presetIndex: index }); }
 
     public update(time: number, viewport?: ViewportParams) {
         const u = this.material.uniforms as unknown as LinePlotUniforms;
@@ -124,36 +133,25 @@ export class LinePlot implements Plot {
 
         const effectiveCount = this.calculateEffectiveCount(p, viewport);
         this.updateUniform(u.uCount, effectiveCount);
-        
         this.instancedMesh.count = Math.max(0, effectiveCount);
     }
 
     private updateUniform<T>(uniform: THREE.IUniform<T>, value: T) {
-        if (uniform.value !== value) {
-            uniform.value = value;
-        }
+        if (uniform.value !== value) uniform.value = value;
     }
 
-    private calculateEffectiveCount(params: PlotUpdateParams, viewport?: ViewportParams): number {
-        const useSmartSub = params.autoSubsampling ?? true;
-        if (!useSmartSub || !viewport) {
-            return params.count;
-        }
-        const ppp = params.pointsPerPixel || 2.0;
+    private calculateEffectiveCount(params: LinePlotParams, viewport?: ViewportParams): number {
+        const ppp = 2.0; // Hardcoded or from params
+        if (!viewport) return params.count;
         const visibilityRatio = this.PLOT_WIDTH / Math.max(viewport.maxX - viewport.minX, 0.001);
         const totalNeeded = Math.ceil(viewport.pixelWidth * ppp * visibilityRatio);
         return Math.min(params.count, totalNeeded);
     }
 
-    public get mesh() {
-        return this.instancedMesh;
-    }
+    public get mesh() { return this.instancedMesh; }
 
     public getDrawStats() {
-        return {
-            total: this.params.count,
-            visible: this.instancedMesh.count
-        };
+        return { total: this.params.count, visible: this.instancedMesh.count };
     }
 
     public dispose() {

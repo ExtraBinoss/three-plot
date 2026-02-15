@@ -15,19 +15,19 @@ export interface PlotContainerOptions {
     alpha?: boolean;
 }
 
-export interface Plot {
+/**
+ * Generic Plot Interface
+ */
+export interface Plot<T = any> {
     update(time: number, viewport: any): void;
     dispose(): void;
     getDrawStats(): { total: number, visible: number };
-    setParams(params: any): this;
+    setParams(params: Partial<T>): this;
     mesh: THREE.Object3D;
 }
 
 export type PlotType = 'line' | 'point';
 
-/**
- * Main entry point for the ThreePlot library.
- */
 export class PlotContainer {
     public scene: THREE.Scene;
     public camera: THREE.OrthographicCamera;
@@ -53,8 +53,8 @@ export class PlotContainer {
             this.scene.background = new THREE.Color(0x0a0a0a);
         }
 
-        const width = container.clientWidth;
-        const height = container.clientHeight;
+        const width = this.container.clientWidth;
+        const height = this.container.clientHeight;
         const aspect = width / height;
         const viewSize = 250; 
 
@@ -78,7 +78,7 @@ export class PlotContainer {
             });
             this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             this.renderer.setSize(width, height);
-            container.appendChild(this.renderer.domElement);
+            this.container.appendChild(this.renderer.domElement);
         }
 
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -96,16 +96,13 @@ export class PlotContainer {
         this.scene.add(grid);
 
         this.resizeObserver = new ResizeObserver(() => this.onResize());
-        this.resizeObserver.observe(container);
+        this.resizeObserver.observe(this.container);
 
         if (this.autoRender) {
             this.animate();
         }
     }
 
-    /**
-     * Factory method to add a plot by type.
-     */
     public add<T extends Plot>(type: PlotType, count: number, color: string | THREE.Color = '#00ff88'): T {
         let plot: any;
         const colorObj = new THREE.Color(color);
@@ -114,8 +111,6 @@ export class PlotContainer {
             plot = new LinePlot(count, colorObj);
         } else if (type === 'point') {
             plot = new PointPlot(count, colorObj);
-        } else {
-            throw new Error(`Unknown plot type: ${type}`);
         }
 
         this.plots.add(plot);
@@ -123,7 +118,6 @@ export class PlotContainer {
         return plot as T;
     }
 
-    // Sugar methods for better DX
     public line(count: number, color?: string | THREE.Color) { return this.add<LinePlot>('line', count, color); }
     public point(count: number, color?: string | THREE.Color) { return this.add<PointPlot>('point', count, color); }
 
@@ -196,13 +190,8 @@ export class PlotContainer {
     public render() {
         const time = performance.now();
         const viewport = this.getViewportStats();
-
         this.plots.forEach(plot => plot.update(time / 1000, viewport));
-
-        if (this.onUpdate) {
-            this.onUpdate(time);
-        }
-
+        if (this.onUpdate) this.onUpdate(time);
         this.controls.update();
         this.renderer.render(this.scene, this.camera);
     }
@@ -214,17 +203,13 @@ export class PlotContainer {
     }
 
     public destroy() {
-        if (this.animationId !== null) {
-            cancelAnimationFrame(this.animationId);
-        }
+        if (this.animationId !== null) cancelAnimationFrame(this.animationId);
         this.resizeObserver.disconnect();
         this.clear();
-        
         if (!this.isExternalRenderer) {
             this.renderer.dispose();
             this.renderer.domElement.remove();
         }
-        
         this.controls.dispose();
     }
 }
