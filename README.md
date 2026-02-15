@@ -1,4 +1,4 @@
-# 🎮 [Interactive Playground](https://binos.github.io/three-plot/)
+# 🎮 [Interactive Playground](https://extrabinoss.github.io/three-plot/)
 
 # ThreePlot
 
