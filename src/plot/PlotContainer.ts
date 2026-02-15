@@ -3,10 +3,8 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { LinePlot } from './line/LinePlot';
 import { PointPlot } from './point/PointPlot';
 import { AxisPlot } from './shared/AxisPlot';
+import { TextPlot } from './shared/TextPlot';
 
-/**
- * Options for initializing a PlotContainer.
- */
 export interface PlotContainerOptions {
     renderer?: THREE.WebGLRenderer;
     scene?: THREE.Scene;
@@ -14,11 +12,12 @@ export interface PlotContainerOptions {
     autoRender?: boolean;
     antialias?: boolean;
     alpha?: boolean;
+    font?: {
+        json: string;
+        texture: string;
+    }
 }
 
-/**
- * Generic Plot Interface
- */
 export interface Plot<T = any> {
     update(time: number, viewport: any): void;
     dispose(): void;
@@ -27,7 +26,7 @@ export interface Plot<T = any> {
     mesh: THREE.Object3D;
 }
 
-export type PlotType = 'line' | 'point' | 'axis';
+export type PlotType = 'line' | 'point' | 'axis' | 'text';
 
 export class PlotContainer {
     public scene: THREE.Scene;
@@ -42,12 +41,15 @@ export class PlotContainer {
     private autoRender: boolean = true;
     
     private plots: Set<Plot> = new Set();
+    private textPlots: Set<TextPlot> = new Set();
+    private fontConfig?: { json: string; texture: string };
     
     public onUpdate?: (time: number) => void;
 
     constructor(container: HTMLElement, options: PlotContainerOptions = {}) {
         this.container = container;
         this.autoRender = options.autoRender !== false;
+        this.fontConfig = options.font;
         
         this.scene = options.scene || new THREE.Scene();
         if (!options.scene) {
@@ -108,9 +110,18 @@ export class PlotContainer {
             plot = new PointPlot(countOrColor, new THREE.Color(color || '#00ff88'));
         } else if (type === 'axis') {
             plot = new AxisPlot(countOrColor || '#ffffff');
+        } else if (type === 'text') {
+            plot = new TextPlot(countOrColor || 2000);
+            if (this.fontConfig && this.fontConfig.json && this.fontConfig.texture) {
+                plot.load(this.fontConfig.json, this.fontConfig.texture);
+            }
+            this.textPlots.add(plot);
         }
 
-        this.plots.add(plot);
+        if (type !== 'text') {
+            this.plots.add(plot);
+        }
+        
         this.scene.add(plot.mesh);
         return plot as T;
     }
@@ -118,22 +129,21 @@ export class PlotContainer {
     public line(count: number, color?: string | THREE.Color) { return this.add<LinePlot>('line', count, color); }
     public point(count: number, color?: string | THREE.Color) { return this.add<PointPlot>('point', count, color); }
     public axis(color?: string | THREE.Color) { return this.add<AxisPlot>('axis', color); }
+    public text(capacity?: number) { return this.add<TextPlot>('text', capacity); }
 
     public remove(plot: Plot) {
-        if (this.plots.has(plot)) {
-            this.scene.remove(plot.mesh);
-            plot.dispose();
-            this.plots.delete(plot);
-        }
+        this.plots.delete(plot);
+        if (plot instanceof TextPlot) this.textPlots.delete(plot);
+        this.scene.remove(plot.mesh);
+        plot.dispose();
         return this;
     }
 
     public clear() {
-        this.plots.forEach(p => {
-            this.scene.remove(p.mesh);
-            p.dispose();
-        });
+        this.plots.forEach(p => { this.scene.remove(p.mesh); p.dispose(); });
+        this.textPlots.forEach(p => { this.scene.remove(p.mesh); p.dispose(); });
         this.plots.clear();
+        this.textPlots.clear();
         return this;
     }
 
@@ -142,13 +152,11 @@ export class PlotContainer {
         const height = this.container.clientHeight;
         const aspect = width / height;
         const viewSize = 250;
-
         this.camera.left = -viewSize * aspect;
         this.camera.right = viewSize * aspect;
         this.camera.top = viewSize;
         this.camera.bottom = -viewSize;
         this.camera.updateProjectionMatrix();
-
         this.renderer.setSize(width, height);
     }
 
@@ -156,20 +164,9 @@ export class PlotContainer {
         const width = this.container.clientWidth;
         const height = this.container.clientHeight;
         const zoom = this.camera.zoom;
-        const visibleWidthWorld = (this.camera.right - this.camera.left) / zoom;
-        const visibleHeightWorld = (this.camera.top - this.camera.bottom) / zoom;
         const minX = this.camera.position.x + (this.camera.left / zoom);
         const maxX = this.camera.position.x + (this.camera.right / zoom);
-        
-        return {
-            pixelWidth: width,
-            pixelHeight: height,
-            visibleWidthWorld,
-            visibleHeightWorld,
-            minX,
-            maxX,
-            zoom
-        };
+        return { pixelWidth: width, pixelHeight: height, minX, maxX, zoom };
     }
 
     public getRendererInfo() {
@@ -177,19 +174,18 @@ export class PlotContainer {
             frame: this.renderer.info.render.frame,
             calls: this.renderer.info.render.calls,
             points: this.renderer.info.render.points,
-            triangles: this.renderer.info.render.triangles,
-            memory: {
-                geometries: this.renderer.info.memory.geometries,
-                textures: this.renderer.info.memory.textures
-            }
+            triangles: this.renderer.info.render.triangles
         };
     }
 
     public render() {
         const time = performance.now();
         const viewport = this.getViewportStats();
-        this.plots.forEach(plot => plot.update(time / 1000, viewport));
+        
         if (this.onUpdate) this.onUpdate(time);
+        this.plots.forEach(plot => plot.update(time / 1000, viewport));
+        this.textPlots.forEach(tp => tp.update(time / 1000, viewport));
+        
         this.controls.update();
         this.renderer.render(this.scene, this.camera);
     }

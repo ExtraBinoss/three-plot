@@ -90,7 +90,7 @@ const onPlotReady = (container: PlotContainer) => {
 
 const rebuildPlot = () => {
   if (!containerInstance) return;
-
+  
   containerInstance.clear();
   
   if (params.mode === 'Lines') {

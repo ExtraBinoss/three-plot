@@ -6,7 +6,7 @@
         <div class="channel-tag green">GREEN CHANNEL</div>
         <div class="channel-tag blue">BLUE CHANNEL</div>
       </div>
-      <PlotView @ready="onPlotReady" />
+      <PlotView :options="plotOptions" @ready="onPlotReady" />
     </div>
     
     <div class="controls-overlay">
@@ -21,7 +21,7 @@
     </div>
 
     <div class="global-stats">
-      <div class="stat-pill">Bounded GPU Axes</div>
+      <div class="stat-pill">Auto-Labeling MSDF API</div>
       <div class="stat-pill">Total GPU Points: <b>{{ (pointCount * 3).toLocaleString() }}</b></div>
     </div>
   </div>
@@ -30,29 +30,51 @@
 <script setup lang="ts">
 import { ref, watch, onUnmounted } from 'vue';
 import PlotView from '../PlotView.vue';
-import { type PlotContainer, type LinePlot, type AxisPlot } from '../../plot';
+import { type PlotContainer, type LinePlot, type AxisPlot, type TextPlot } from '../../plot';
 
 const pointCount = 20000;
 const speed = ref(1.0);
 const spread = ref(80);
 
+const plotOptions = {
+    font: {
+        json: '/fonts/font.json',
+        texture: '/fonts/font.png'
+    }
+};
+
 let containerInstance: PlotContainer | null = null;
 let redPlot: LinePlot, greenPlot: LinePlot, bluePlot: LinePlot;
 let redAxis: AxisPlot, greenAxis: AxisPlot, blueAxis: AxisPlot;
+let textLayer: TextPlot;
 
 const onPlotReady = (container: PlotContainer) => {
   containerInstance = container;
   
-  // Create Axes
-  redAxis = container.axis('#ff4466').ticks(50, 10);
-  greenAxis = container.axis('#44ff88').ticks(50, 10);
-  blueAxis = container.axis('#44aaff').ticks(50, 10);
+  // 1. Setup Text Layer FIRST
+  textLayer = container.text(2000);
 
-  // Create Plots
+  // 2. Setup Axes with Auto-Labels
+  redAxis = container.axis('#ff4466').ticks(50, 10).labels(textLayer, 0.07, '#ff4466');
+  greenAxis = container.axis('#44ff88').ticks(50, 10).labels(textLayer, 0.07, '#44ff88');
+  blueAxis = container.axis('#44aaff').ticks(50, 10).labels(textLayer, 0.07, '#44aaff');
+
+  // 3. Setup Plots
   redPlot = container.line(pointCount, '#ff4466').amplitude(50).frequency(0.05).preset(4);
   greenPlot = container.line(pointCount, '#44ff88').amplitude(50).frequency(0.05).preset(0);
   bluePlot = container.line(pointCount, '#44aaff').amplitude(50).frequency(0.05).preset(5);
   
+  container.onUpdate = () => {
+      if (textLayer) {
+          textLayer.clear();
+          const s = spread.value;
+          // Add custom permanent titles each frame since we clear
+          textLayer.add("SIGNAL: HARMONIC", -200, s + 65, 0.08, "#ff4466");
+          textLayer.add("SIGNAL: SINE", -200, 65, 0.08, "#44ff88");
+          textLayer.add("SIGNAL: CHAOS", -200, -s + 65, 0.08, "#44aaff");
+      }
+  };
+
   updatePlots();
 };
 
@@ -62,15 +84,12 @@ const updatePlots = () => {
   const s = spread.value;
   const baseAmp = 50;
   
-  // Red (Harmonic preset exceeds base amplitude, so we set a larger axis range)
   redPlot.amplitude(baseAmp).offset(0, s);
   redAxis.rangeY(-baseAmp * 1.5, baseAmp * 1.5).offset(0, s);
 
-  // Green (Sine is exactly baseAmp)
   greenPlot.amplitude(baseAmp).offset(0, 0);
   greenAxis.rangeY(-baseAmp, baseAmp).offset(0, 0);
 
-  // Blue (Chaos also exceeds base amplitude)
   bluePlot.amplitude(baseAmp).offset(0, -s);
   blueAxis.rangeY(-baseAmp * 2.0, baseAmp * 2.0).offset(0, -s);
 };
@@ -79,7 +98,7 @@ watch(spread, updatePlots);
 
 watch(speed, (newSpeed) => {
     const active = newSpeed > 0;
-    [redPlot, greenPlot, bluePlot].forEach(p => p.setParams({ autoUpdate: active }));
+    [redPlot, greenPlot, bluePlot].forEach(p => p?.setParams({ autoUpdate: active }));
 });
 
 onUnmounted(() => {
@@ -96,9 +115,9 @@ onUnmounted(() => {
   pointer-events: none; z-index: 5;
 }
 .channel-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 2px; font-weight: 700; }
-.red { color: #ff4466; text-shadow: 0 0 10px rgba(255, 68, 102, 0.5); }
-.green { color: #44ff88; text-shadow: 0 0 10px rgba(68, 255, 136, 0.5); }
-.blue { color: #44aaff; text-shadow: 0 0 10px rgba(68, 170, 255, 0.5); }
+.red { color: #ff4466; }
+.green { color: #44ff88; }
+.blue { color: #44aaff; }
 
 .controls-overlay {
   position: absolute; top: 24px; right: 30px;
