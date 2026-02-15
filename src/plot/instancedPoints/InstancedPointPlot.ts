@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import vertexShader from './shaders/instanced_vertex.glsl';
-import fragmentShader from './shaders/instanced_fragment.glsl';
-import type { FastPlotUpdateParams, ViewportParams } from './FastPlot';
+import vertexShader from './instanced_vertex.glsl';
+import fragmentShader from './instanced_fragment.glsl';
+import type { FastPlotUpdateParams, ViewportParams } from '../point/PointPlot';
 
 interface InstancedPlotUniforms {
     uTime: THREE.IUniform<number>;

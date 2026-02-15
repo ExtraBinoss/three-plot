@@ -37,6 +37,13 @@ void main() {
     else if (preset == 3) {
         y = (step(0.5, fract(t / (2.0 * PI))) * 2.0 - 1.0) * uAmplitude;
     }
+    else if (preset == 4) {
+        y = (sin(t) + sin(t * 2.1) * 0.5 + sin(t * 0.5) * 1.5) * uAmplitude * 0.5;
+        y += cos(t * 0.2) * uAmplitude * 0.3;
+    }
+    else if (preset == 5) {
+        y = (sin(t) * cos(t * 1.1 + uTime) * sin(t * 0.5 - uTime * 0.5)) * uAmplitude * 2.0;
+    }
 
     vec4 mvPosition = modelViewMatrix * vec4(x, y, 0.0, 1.0);
     gl_PointSize = uPointSize;

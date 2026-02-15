@@ -1,19 +1,22 @@
 <template>
   <div class="app">
+    <div class="header">
+      <div class="logo">ThreePlot <span class="version">v1.2.0</span></div>
+      <div class="tagline">GPU-Accelerated Data Visualization</div>
+    </div>
     <PlotView @ready="onPlotReady" />
     <div class="stats" v-if="stats">
       <div class="stat-group">
-        <div class="stat-main">FPS: {{ fps }} <span class="ms">({{ frameTime.toFixed(1) }}ms)</span></div>
-        <div class="stat-sub">Total: {{ params.count.toLocaleString() }} pts</div>
+        <div class="stat-main">{{ fps }} <span class="unit">FPS</span> <span class="ms">({{ frameTime.toFixed(1) }}ms)</span></div>
+        <div class="stat-sub">{{ params.count.toLocaleString() }} elements in scene</div>
       </div>
       <div class="stat-group profiling" v-if="gpuStats">
-        <div class="stat-row" v-if="params.mode === 'Points'"><span>GPU Points:</span> <b>{{ gpuStats.points.toLocaleString() }}</b></div>
+        <div class="stat-row"><span>Device Load:</span> <b>{{ (frameTime / 16.6 * 100).toFixed(0) }}%</b></div>
+        <div class="stat-row" v-if="params.mode === 'Points'"><span>GPU Vertices:</span> <b>{{ gpuStats.points.toLocaleString() }}</b></div>
         <div class="stat-row" v-else><span>GPU Triangles:</span> <b>{{ gpuStats.triangles.toLocaleString() }}</b></div>
-        <div class="stat-row"><span>Visible Pts:</span> <b>{{ params.actualPoints.toLocaleString() }}</b></div>
         <div class="stat-row"><span>Draw Calls:</span> <b>{{ gpuStats.calls }}</b></div>
-        <div class="stat-row"><span>Memory:</span> <b>{{ gpuStats.memory.geometries }} geom</b></div>
       </div>
-      <div class="hint">{{ params.mode }} Mode Active</div>
+      <div class="hint">{{ params.mode }} Engine Active</div>
     </div>
   </div>
 </template>
@@ -25,27 +28,27 @@ import PlotView from './components/PlotView.vue';
 import { PlotContainer, FastPlot, InstancedPlot, LinePlot } from './plot';
 import * as THREE from 'three';
 
-const presets = ['sine', 'saw', 'zigzag', 'ramp'];
+const presets = ['sine', 'saw', 'zigzag', 'ramp', 'harmonic', 'chaos'];
 
 const params = reactive({
-  count: 300000, 
-  preset: 'sine',
-  presetIndex: 0,
-  frequency: 0.1,
-  amplitude: 20,
-  pointSize: 2.0,
+  count: 1000, 
+  preset: 'harmonic',
+  presetIndex: 4,
+  frequency: 0.05,
+  amplitude: 40,
+  pointSize: 1.5,
   adaptive: true,
   lodFactor: 1.0,
-  color: '#00ff88',
+  color: '#00ccff',
   autoUpdate: true,
   autoSubsampling: true,
   autoCulling: true,
   pointsPerPixel: 2.0,
   actualPoints: 0,
-  mode: 'Points',
-  borderColor: '#000000',
-  borderWidth: 0.3,
-  rainbow: false,
+  mode: 'Lines',
+  borderColor: '#0088ff',
+  borderWidth: 0.1,
+  rainbow: true,
   dashScale: 0.0
 });
 
@@ -215,86 +218,166 @@ onMounted(() => {
 </script>
 
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap');
+
 body, html, #app, .app {
   margin: 0;
   padding: 0;
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background-color: #0a0a0a;
+  background-color: #050505;
   color: white;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Outfit', sans-serif;
+}
+
+.header {
+  position: absolute;
+  top: 24px;
+  left: 30px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.logo {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #fff 0%, #888 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.version {
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #888;
+  -webkit-text-fill-color: initial;
+}
+
+.tagline {
+  font-size: 11px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-top: 4px;
 }
 
 .stats {
   position: absolute;
-  top: 10px;
-  left: 10px;
-  background: rgba(10, 10, 10, 0.85);
-  padding: 16px;
-  border-radius: 12px;
-  font-family: 'JetBrains Mono', monospace;
+  bottom: 30px;
+  left: 30px;
+  background: rgba(15, 15, 15, 0.7);
+  padding: 20px;
+  border-radius: 16px;
+  font-family: 'Outfit', sans-serif;
   pointer-events: none;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(12px);
-  min-width: 200px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px);
+  min-width: 240px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
 }
 
 .stat-group {
-    margin-bottom: 12px;
+    margin-bottom: 16px;
+}
+
+.stat-group:last-child {
+  margin-bottom: 0;
 }
 
 .stat-main {
-    font-size: 20px;
+    font-size: 24px;
     font-weight: 700;
-    color: #00ff88;
+    color: #fff;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+.stat-main .unit {
+    font-size: 12px;
+    color: #666;
+    font-weight: 400;
 }
 
 .stat-main .ms {
-    font-size: 14px;
+    font-size: 12px;
     font-weight: 400;
-    color: #666;
-    margin-left: 4px;
+    color: #444;
+    font-family: 'JetBrains Mono', monospace;
 }
 
 .stat-sub {
     font-size: 12px;
     color: #888;
+    margin-top: 4px;
 }
 
 .profiling {
-  margin: 10px 0;
-  padding-top: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  color: #ddd;
-  font-size: 11px;
-}
-
-.divider {
-    height: 1px;
-    background: rgba(255, 255, 255, 0.05);
-    margin: 4px 0;
+  gap: 8px;
+  color: #ccc;
+  font-size: 12px;
 }
 
 .stat-row {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 2px;
+    align-items: center;
 }
 
 .stat-row b {
-    color: #fff;
+    color: #00ccff;
+    font-family: 'JetBrains Mono', monospace;
 }
 
 .hint {
     font-size: 9px;
-    color: #555;
-    margin-top: 10px;
+    color: #444;
+    margin-top: 16px;
     text-transform: uppercase;
-    letter-spacing: 2px;
+    letter-spacing: 0.2em;
+    font-weight: 700;
+}
+
+/* GUI Overrides to make it look premium */
+.lil-gui {
+  --background-color: rgba(15, 15, 15, 0.9);
+  --header-color: #111;
+  --title-color: #eee;
+  --widget-color: rgba(255, 255, 255, 0.05);
+  --focus-color: #00ccff;
+  --number-color: #00ccff;
+  --string-color: #00ccff;
+  --text-color: #eee;
+  --font-family: 'Outfit', sans-serif;
+  backdrop-filter: blur(20px);
+  border-radius: 12px;
+  margin: 24px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.lil-gui input {
+    background: rgba(0, 0, 0, 0.4) !important;
+    color: #00ccff !important;
+    border-radius: 4px;
+    padding: 2px 6px !important;
+    font-family: 'JetBrains Mono', monospace !important;
+}
+
+.lil-gui input:focus {
+    background: rgba(0, 204, 255, 0.1) !important;
+    outline: 1px solid #00ccff !important;
 }
 </style>

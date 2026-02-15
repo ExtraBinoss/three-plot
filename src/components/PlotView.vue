@@ -1,16 +1,16 @@
-<template>
+  <template>
   <div ref="container" class="plot-container"></div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
-import { PlotContainer } from '../plot/PlotContainer';
+import { PlotContainer, type PlotContainerOptions } from '../plot/PlotContainer';
 
 const container = ref<HTMLElement | null>(null);
 let plotContainer: PlotContainer | null = null;
 
 const props = defineProps<{
-  // Add props if needed for initial config
+  options?: PlotContainerOptions;
 }>();
 
 const emit = defineEmits<{
@@ -19,7 +19,7 @@ const emit = defineEmits<{
 
 onMounted(() => {
   if (container.value) {
-    plotContainer = new PlotContainer(container.value);
+    plotContainer = new PlotContainer(container.value, props.options);
     emit('ready', plotContainer);
   }
 });

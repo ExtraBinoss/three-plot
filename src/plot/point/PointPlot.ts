@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import vertexShader from './shaders/vertex.glsl';
-import fragmentShader from './shaders/fragment.glsl';
+import vertexShader from './vertex.glsl';
+import fragmentShader from './fragment.glsl';
 
 interface FastPlotUniforms {
     uTime: THREE.IUniform<number>;

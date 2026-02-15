@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import vertexShader from './shaders/line_vertex.glsl';
-import fragmentShader from './shaders/line_fragment.glsl';
-import type { FastPlotUpdateParams, ViewportParams } from './FastPlot';
+import vertexShader from './line_vertex.glsl';
+import fragmentShader from './line_fragment.glsl';
+import type { FastPlotUpdateParams, ViewportParams } from '../point/PointPlot';
 
 interface LinePlotUniforms {
     uTime: THREE.IUniform<number>;

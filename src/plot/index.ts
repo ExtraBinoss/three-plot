@@ -1,4 +1,14 @@
 export * from './PlotContainer';
-export * from './FastPlot';
-export * from './InstancedPlot';
-export * from './LinePlot';
+export * from './point/PointPlot';
+export * from './instancedPoints/InstancedPointPlot';
+export * from './line/LinePlot';
+
+import { PlotContainer } from './PlotContainer';
+import type { PlotContainerOptions } from './PlotContainer';
+
+/**
+ * Helper to quickly initialize a plot in a container.
+ */
+export function createPlot(element: HTMLElement, options?: PlotContainerOptions): PlotContainer {
+    return new PlotContainer(element, options);
+}

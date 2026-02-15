@@ -28,6 +28,15 @@ vec4 getPlotPos(float index) {
     else if (preset == 1) y = (fract(t / (2.0 * PI)) * 2.0 - 1.0) * uAmplitude;
     else if (preset == 2) y = (abs(fract(t / (2.0 * PI)) * 2.0 - 1.0) * 2.0 - 1.0) * uAmplitude;
     else if (preset == 3) y = (step(0.5, fract(t / (2.0 * PI))) * 2.0 - 1.0) * uAmplitude;
+    else if (preset == 4) {
+        // Showcase: Harmonic Interference
+        y = (sin(t) + sin(t * 2.1) * 0.5 + sin(t * 0.5) * 1.5) * uAmplitude * 0.5;
+        y += cos(t * 0.2) * uAmplitude * 0.3;
+    }
+    else if (preset == 5) {
+        // Showcase: Chaos / Noise
+        y = (sin(t) * cos(t * 1.1 + uTime) * sin(t * 0.5 - uTime * 0.5)) * uAmplitude * 2.0;
+    }
     
     return vec4(x, y, 0.0, 1.0);
 }
