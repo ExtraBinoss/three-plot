@@ -68,7 +68,7 @@ export class LinePlot implements Plot<LinePlotParams> {
             },
             vertexShader,
             fragmentShader,
-            transparent: true,
+            transparent: false,
             depthWrite: false,
             depthTest: false,
             blending: THREE.AdditiveBlending

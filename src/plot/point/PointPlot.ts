@@ -71,7 +71,7 @@ export class PointPlot implements Plot<PointPlotParams> {
             },
             vertexShader,
             fragmentShader,
-            transparent: true,
+            transparent: false,
             depthWrite: false,
             depthTest: false,
             blending: THREE.AdditiveBlending

@@ -32,7 +32,7 @@ import { ref, watch, onUnmounted } from 'vue';
 import PlotView from '../PlotView.vue';
 import { type PlotContainer, type LinePlot, type AxisPlot, type TextPlot } from '../../plot';
 
-const pointCount = 20000;
+const pointCount = 1000;
 const speed = ref(1.0);
 const spread = ref(80);
 

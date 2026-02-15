@@ -124,45 +124,64 @@ export class MSDFText {
         if (!this.fontData) return;
 
         let glyphIndex = 0;
-        const dummy = new THREE.Object3D();
+        const matArray = this.mesh.instanceMatrix.array as Float32Array;
         const uvAttr = this.mesh.geometry.getAttribute('aUvOffset') as THREE.InstancedBufferAttribute;
-        const colorAttr = this.mesh.geometry.getAttribute('aColor') as THREE.InstancedBufferAttribute;
+        const uvArray = uvAttr.array as Float32Array;
+        const colAttr = this.mesh.geometry.getAttribute('aColor') as THREE.InstancedBufferAttribute;
+        const colArray = colAttr.array as Float32Array;
         
         const scaleW = this.fontData.common.scaleW;
         const scaleH = this.fontData.common.scaleH;
+        const charMap = this.charMap;
 
         for (const inst of this.instances) {
+            const text = inst.text;
+            const textLen = text.length;
+            const s = inst.scale;
+            const pos = inst.position;
+            const color = inst.color;
+            
             let cursorX = 0;
-            const textWidth = this.calculateWidth(inst.text) * inst.scale;
+            const textWidth = this.calculateWidth(text) * s;
             
             let alignOffsetX = 0;
             if (inst.align === 'center') alignOffsetX = -textWidth / 2;
             else if (inst.align === 'right') alignOffsetX = -textWidth;
 
-            for (let i = 0; i < inst.text.length; i++) {
+            for (let i = 0; i < textLen; i++) {
                 if (glyphIndex >= this.capacity) break;
 
-                const charStr = inst.text[i];
-                if (charStr === undefined) continue; // TS safety for unchecked indexed access
+                const charStr = text[i];
+                if (charStr === undefined) continue;
 
-                const char = this.charMap.get(charStr);
+                const char = charMap.get(charStr);
                 if (!char) {
                     if (charStr === ' ') cursorX += 20; 
                     continue;
                 }
 
-                const s = inst.scale;
-                dummy.scale.set(char.width * s, char.height * s, 1);
-                
-                const px = inst.position.x + alignOffsetX + (cursorX + char.xoffset + char.width / 2) * s;
-                const py = inst.position.y - (char.yoffset + char.height / 2) * s;
-                
-                dummy.position.set(px, py, inst.position.z);
-                dummy.updateMatrix();
-                
-                this.mesh.setMatrixAt(glyphIndex, dummy.matrix);
-                uvAttr.setXYZW(glyphIndex, char.x / scaleW, 1.0 - (char.y + char.height) / scaleH, char.width / scaleW, char.height / scaleH);
-                colorAttr.setXYZ(glyphIndex, inst.color.r, inst.color.g, inst.color.b);
+                const m = glyphIndex * 16;
+                const charW = char.width * s;
+                const charH = char.height * s;
+                const px = pos.x + alignOffsetX + (cursorX + char.xoffset + char.width / 2) * s;
+                const py = pos.y - (char.yoffset + char.height / 2) * s;
+
+                // Column-major matrix filling (optimized)
+                matArray[m + 0] = charW;  matArray[m + 1] = 0;      matArray[m + 2] = 0;      matArray[m + 3] = 0;
+                matArray[m + 4] = 0;      matArray[m + 5] = charH;  matArray[m + 6] = 0;      matArray[m + 7] = 0;
+                matArray[m + 8] = 0;      matArray[m + 9] = 0;      matArray[m + 10] = 1;     matArray[m + 11] = 0;
+                matArray[m + 12] = px;    matArray[m + 13] = py;    matArray[m + 14] = pos.z; matArray[m + 15] = 1;
+
+                const u = glyphIndex * 4;
+                uvArray[u + 0] = char.x / scaleW;
+                uvArray[u + 1] = 1.0 - (char.y + char.height) / scaleH;
+                uvArray[u + 2] = char.width / scaleW;
+                uvArray[u + 3] = char.height / scaleH;
+
+                const c = glyphIndex * 3;
+                colArray[c + 0] = color.r;
+                colArray[c + 1] = color.g;
+                colArray[c + 2] = color.b;
 
                 cursorX += char.xadvance;
                 glyphIndex++;
@@ -172,16 +191,17 @@ export class MSDFText {
         this.mesh.count = glyphIndex;
         this.mesh.instanceMatrix.needsUpdate = true;
         uvAttr.needsUpdate = true;
-        colorAttr.needsUpdate = true;
+        colAttr.needsUpdate = true;
     }
 
     private calculateWidth(text: string): number {
         if (!this.fontData) return 0;
         let w = 0;
+        const charMap = this.charMap;
         for (let i = 0; i < text.length; i++) {
             const charStr = text[i];
             if (charStr === undefined) continue;
-            w += this.charMap.get(charStr)?.xadvance ?? 20;
+            w += charMap.get(charStr)?.xadvance ?? 20;
         }
         return w;
     }
