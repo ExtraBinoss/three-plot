@@ -48,7 +48,6 @@ const params = reactive({
   mode: 'Lines',
   borderColor: '#0088ff',
   borderWidth: 0.1,
-  rainbow: true,
   dashScale: 0.0
 });
 
@@ -175,7 +174,6 @@ const setupGui = () => {
     }
   });
   folderDecorative.add(params, 'borderWidth', 0, 1, 0.01).name('Outline Width');
-  folderDecorative.add(params, 'rainbow').name('Rainbow Mode');
   folderDecorative.add(params, 'dashScale', 0, 10, 0.1).name('Dash Scale');
 
   const folderData = gui.addFolder('Data & Performance');
@@ -349,35 +347,5 @@ body, html, #app, .app {
     text-transform: uppercase;
     letter-spacing: 0.2em;
     font-weight: 700;
-}
-
-/* GUI Overrides to make it look premium */
-.lil-gui {
-  --background-color: rgba(15, 15, 15, 0.9);
-  --header-color: #111;
-  --title-color: #eee;
-  --widget-color: rgba(255, 255, 255, 0.05);
-  --focus-color: #00ccff;
-  --number-color: #00ccff;
-  --string-color: #00ccff;
-  --text-color: #eee;
-  --font-family: 'Outfit', sans-serif;
-  backdrop-filter: blur(20px);
-  border-radius: 12px;
-  margin: 24px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-}
-
-.lil-gui input {
-    background: rgba(0, 0, 0, 0.4) !important;
-    color: #00ccff !important;
-    border-radius: 4px;
-    padding: 2px 6px !important;
-    font-family: 'JetBrains Mono', monospace !important;
-}
-
-.lil-gui input:focus {
-    background: rgba(0, 204, 255, 0.1) !important;
-    outline: 1px solid #00ccff !important;
 }
 </style>

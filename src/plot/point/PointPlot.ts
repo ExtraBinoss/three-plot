@@ -35,7 +35,6 @@ export interface FastPlotUpdateParams {
     pointsPerPixel?: number;
     borderColor?: string | THREE.Color;
     borderWidth?: number;
-    rainbow?: boolean;
     dashScale?: number;
 }
 

@@ -15,7 +15,6 @@ interface LinePlotUniforms {
     uLineWidth: THREE.IUniform<number>;
     uOutlineColor: THREE.IUniform<THREE.Color>;
     uOutlineWidth: THREE.IUniform<number>;
-    uRainbow: THREE.IUniform<number>;
     uDashScale: THREE.IUniform<number>;
 }
 
@@ -52,7 +51,6 @@ export class LinePlot {
                 uLineWidth: { value: 2.0 },
                 uOutlineColor: { value: new THREE.Color(0x000000) },
                 uOutlineWidth: { value: 0.0 },
-                uRainbow: { value: 0.0 },
                 uDashScale: { value: 0.0 }
             },
             vertexShader,
@@ -92,7 +90,6 @@ export class LinePlot {
             u.uOutlineColor.value.set(params.borderColor as any);
         }
         this.updateUniform(u.uOutlineWidth, params.borderWidth ?? 0.0);
-        this.updateUniform(u.uRainbow, params.rainbow ? 1.0 : 0.0);
         this.updateUniform(u.uDashScale, params.dashScale ?? 0.0);
 
         const effectiveCount = this.calculateEffectiveCount(params, viewport);
