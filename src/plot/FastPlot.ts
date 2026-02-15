@@ -33,6 +33,10 @@ export interface FastPlotUpdateParams {
     autoSubsampling?: boolean;
     autoCulling?: boolean;
     pointsPerPixel?: number;
+    borderColor?: string | THREE.Color;
+    borderWidth?: number;
+    rainbow?: boolean;
+    dashScale?: number;
 }
 
 export class FastPlot {

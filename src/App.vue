@@ -42,7 +42,11 @@ const params = reactive({
   autoCulling: true,
   pointsPerPixel: 2.0,
   actualPoints: 0,
-  mode: 'Points'
+  mode: 'Points',
+  borderColor: '#000000',
+  borderWidth: 0.3,
+  rainbow: false,
+  dashScale: 0.0
 });
 
 let plotContainer: PlotContainer | null = null;
@@ -98,7 +102,7 @@ const initPlot = () => {
   const color = new THREE.Color(params.color);
   
   if (params.mode === 'Points') {
-    currentPlot = new FastPlot(2000000, color);
+    currentPlot = new FastPlot(3000, color);
   } else if (params.mode === 'Instanced') {
     currentPlot = new InstancedPlot(2000000, color);
   } else if (params.mode === 'Lines') {
@@ -119,10 +123,10 @@ const setupGui = () => {
   const updateVisibility = () => {
     const isPoints = params.mode === 'Points';
     cullingController.show(isPoints);
+    subsamplingFolder.show(isPoints);
     
-    // Subsampling is also less useful for Lines
     const isLines = params.mode === 'Lines';
-    subsamplingFolder.show(!isLines);
+    folderDecorative.show(isLines);
   };
 
   gui.add(params, 'mode', ['Points', 'Instanced', 'Lines']).name('Rendering Mode').onChange((mode: string) => {
@@ -132,6 +136,17 @@ const setupGui = () => {
     initPlot();
     updateVisibility();
   });
+
+  const folderDecorative = gui.addFolder('Decorative Lines');
+  folderDecorative.addColor(params, 'borderColor').name('Outline Color').onChange((val: string) => {
+    const material = currentPlot?.mesh?.material as THREE.ShaderMaterial | undefined;
+    if (material && material.uniforms?.uOutlineColor) {
+      material.uniforms.uOutlineColor.value.set(val);
+    }
+  });
+  folderDecorative.add(params, 'borderWidth', 0, 1, 0.01).name('Outline Width');
+  folderDecorative.add(params, 'rainbow').name('Rainbow Mode');
+  folderDecorative.add(params, 'dashScale', 0, 10, 0.1).name('Dash Scale');
 
   const folderData = gui.addFolder('Data & Performance');
   folderData.add(params, 'count', 100, 2000000, 100).name('Total Data Points');
