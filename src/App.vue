@@ -97,19 +97,26 @@ const initPlot = () => {
   
   if (currentPlot) {
     plotContainer.scene.remove(currentPlot.mesh);
+    // Dispose resources to prevent GPU memory leaks
+    if (currentPlot.mesh.geometry) currentPlot.mesh.geometry.dispose();
+    if (currentPlot.mesh.material) {
+      if (Array.isArray(currentPlot.mesh.material)) {
+        currentPlot.mesh.material.forEach(m => m.dispose());
+      } else {
+        currentPlot.mesh.material.dispose();
+      }
+    }
   }
   
   const color = new THREE.Color(params.color);
+  const capacity = params.count;
   
   if (params.mode === 'Points') {
-    currentPlot = new FastPlot(2000000, color);
+    currentPlot = new FastPlot(capacity, color);
   } else if (params.mode === 'Instanced') {
-    currentPlot = new InstancedPlot(2000000, color);
+    currentPlot = new InstancedPlot(capacity, color);
   } else if (params.mode === 'Lines') {
-    // For Lines (Line2), the CPU->GPU transfer is more expensive.
-    // We cap it to a reasonable count if it's too high for stable 60fps.
-    const safeCount = Math.min(params.count, 2000000);
-    currentPlot = new LinePlot(safeCount, color);
+    currentPlot = new LinePlot(capacity, color);
   }
   
   if (currentPlot) {
@@ -149,7 +156,9 @@ const setupGui = () => {
   folderDecorative.add(params, 'dashScale', 0, 10, 0.1).name('Dash Scale');
 
   const folderData = gui.addFolder('Data & Performance');
-  folderData.add(params, 'count', 100, 2000000, 100).name('Total Data Points');
+  folderData.add(params, 'count', 100, 50000000, 100).name('Total Data Points').onFinishChange(() => {
+    initPlot();
+  });
   
   // Folder for optimizations (Subsampling)
   const subsamplingFolder = folderData.addFolder('Data Optimizations');
