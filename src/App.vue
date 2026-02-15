@@ -1,21 +1,10 @@
 <template>
   <div class="app">
     <PlotView @ready="onPlotReady" />
-    <div class="stats" v-if="stats && profiling">
+    <div class="stats" v-if="stats">
       <div class="stat-group">
         <div class="stat-main">FPS: {{ fps }}</div>
         <div class="stat-sub">Points: {{ params.count.toLocaleString() }}</div>
-      </div>
-      
-      <div v-if="profiling" class="profiling">
-        <div>Total Frame: {{ profiling.frameMs.toFixed(2) }}ms</div>
-        <div>GPU Time: {{ profiling.gpuMs.toFixed(2) }}ms</div>
-        <div class="divider"></div>
-        <div>CPU Update: {{ profiling.updateMs.toFixed(2) }}ms</div>
-        <div>CPU Render: {{ profiling.renderMs.toFixed(2) }}ms</div>
-        <div class="divider"></div>
-        <div>Draw Calls: {{ profiling.drawCalls }}</div>
-        <div>Parsed Points: {{ profiling.points.toLocaleString() }}</div>
       </div>
       <div class="hint">GPU-Powered 2D Plotter</div>
     </div>
@@ -26,13 +15,13 @@
 import { ref, reactive, onMounted } from 'vue';
 import GUI from 'lil-gui';
 import PlotView from './components/PlotView.vue';
-import { PlotContainer, FastPlot, type ProfilingData } from './plot';
+import { PlotContainer, FastPlot } from './plot';
 import * as THREE from 'three';
 
 const presets = ['sine', 'saw', 'zigzag', 'ramp'];
 
 const params = reactive({
-  count: 1000000, // Now we can easily handle 1M
+  count: 1000000, 
   preset: 'sine',
   presetIndex: 0,
   frequency: 0.1,
@@ -48,7 +37,8 @@ let plotContainer: PlotContainer | null = null;
 let fastPlot: FastPlot | null = null;
 const stats = ref(true);
 const fps = ref(0);
-const profiling = ref<ProfilingData | null>(null);
+let lastTime = performance.now();
+let frames = 0;
 
 const onPlotReady = (container: PlotContainer) => {
   plotContainer = container;
@@ -62,7 +52,7 @@ const initPlot = () => {
     plotContainer.scene.remove(fastPlot.mesh);
   }
   
-  fastPlot = new FastPlot(1000000, plotContainer.profiler, new THREE.Color(params.color));
+  fastPlot = new FastPlot(1000000, new THREE.Color(params.color));
   plotContainer.scene.add(fastPlot.mesh);
 };
 
@@ -90,14 +80,17 @@ const animate = () => {
   requestAnimationFrame(animate);
   
   const time = performance.now();
+  frames++;
 
-  if (fastPlot && plotContainer) {
+  if (time >= lastTime + 1000) {
+    fps.value = Math.round((frames * 1000) / (time - lastTime));
+    lastTime = time;
+    frames = 0;
+  }
+
+  if (fastPlot) {
       const elapsed = params.autoUpdate ? time / 1000 : 0;
       fastPlot.update(elapsed, params);
-      
-      // Update profiling metrics
-      profiling.value = fastPlot.profiling;
-      fps.value = profiling.value.fps;
   }
 };
 

@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import vertexShader from './shaders/vertex.glsl';
 import fragmentShader from './shaders/fragment.glsl';
-import { Profiler, type ProfilingData } from './Profiler';
 
 interface FastPlotUniforms {
     uTime: THREE.IUniform<number>;
@@ -19,11 +18,8 @@ export class FastPlot {
     private points: THREE.Points;
     private geometry: THREE.BufferGeometry;
     private material: THREE.ShaderMaterial;
-    private profiler: Profiler;
 
-    constructor(maxCount: number, profiler: Profiler, baseColor: THREE.Color = new THREE.Color(0x00ff88)) {
-        this.profiler = profiler;
-        
+    constructor(maxCount: number, baseColor: THREE.Color = new THREE.Color(0x00ff88)) {
         this.geometry = new THREE.BufferGeometry();
         
         const indices = new Float32Array(maxCount);
@@ -67,8 +63,6 @@ export class FastPlot {
         adaptive?: boolean;
         lodFactor?: number;
     }) {
-        this.profiler.beginUpdate();
-
         const u = this.material.uniforms as unknown as FastPlotUniforms;
         if (!u) return;
 
@@ -96,18 +90,9 @@ export class FastPlot {
              u.uCount.value = Number(params.count);
              this.geometry.setDrawRange(0, params.count);
         }
-
-        this.profiler.endUpdate();
     }
 
     public get mesh() {
         return this.points;
-    }
-
-    public get profiling(): ProfilingData {
-        const data = this.profiler.current;
-        const u = this.material.uniforms as unknown as FastPlotUniforms;
-        data.pointsCount = u ? u.uCount.value : 0;
-        return data;
     }
 }

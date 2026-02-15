@@ -1,20 +1,17 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Profiler, type ProfilingData } from './Profiler';
 
 export class PlotContainer {
     public scene: THREE.Scene;
     public camera: THREE.OrthographicCamera;
     public renderer: THREE.WebGLRenderer;
     public controls: OrbitControls;
-    public profiler: Profiler;
     private container: HTMLElement;
     private animationId: number | null = null;
     private resizeObserver: ResizeObserver;
 
     constructor(container: HTMLElement) {
         this.container = container;
-        this.profiler = new Profiler();
         
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x0a0a0a);
@@ -40,8 +37,6 @@ export class PlotContainer {
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.setSize(width, height);
         container.appendChild(this.renderer.domElement);
-
-        this.profiler.init(this.renderer);
 
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
@@ -80,20 +75,8 @@ export class PlotContainer {
 
     private animate() {
         this.animationId = requestAnimationFrame(() => this.animate());
-        
-        this.profiler.beginFrame();
-        
         this.controls.update();
-        
-        this.profiler.beginRender();
         this.renderer.render(this.scene, this.camera);
-        this.profiler.endRender();
-        
-        this.profiler.endFrame();
-    }
-
-    public get profiling(): ProfilingData {
-        return this.profiler.current;
     }
 
     public destroy() {
