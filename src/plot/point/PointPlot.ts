@@ -106,6 +106,10 @@ export class FastPlot {
         const isAdaptive = params.adaptive ?? true;
         this.updateUniform(u.uAdaptive, isAdaptive ? 1.0 : 0.0);
 
+        if (params.color !== undefined) {
+            u.uColor.value.set(params.color as any);
+        }
+
         // Data Reduction and Culling
         const effectiveCount = this.calculateEffectiveCount(params, viewport);
         const { drawStart, drawCount } = this.calculateDrawRange(effectiveCount, params, viewport);

@@ -86,6 +86,10 @@ export class LinePlot {
         this.updateUniform(u.uLodFactor, params.lodFactor ?? 1.0);
         this.updateUniform(u.uLineWidth, params.pointSize ?? 2.0);
         
+        if (params.color !== undefined) {
+            u.uColor.value.set(params.color as any);
+        }
+
         if (params.borderColor !== undefined) {
             u.uOutlineColor.value.set(params.borderColor as any);
         }

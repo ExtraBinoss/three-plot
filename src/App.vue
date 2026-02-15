@@ -25,7 +25,7 @@
 import { ref, reactive, onMounted } from 'vue';
 import GUI from 'lil-gui';
 import PlotView from './components/PlotView.vue';
-import { PlotContainer, FastPlot, InstancedPlot, LinePlot } from './plot';
+import { PlotContainer, FastPlot, LinePlot } from './plot';
 import * as THREE from 'three';
 
 const presets = ['sine', 'saw', 'zigzag', 'ramp', 'harmonic', 'chaos'];
@@ -58,7 +58,7 @@ const lerp = (current: number, target: number, speed: number) => {
 };
 
 let plotContainer: PlotContainer | null = null;
-let currentPlot: FastPlot | InstancedPlot | LinePlot | null = null;
+let currentPlot: FastPlot | LinePlot | null = null;
 const stats = ref(true);
 const fps = ref(0);
 const frameTime = ref(0);
@@ -92,8 +92,14 @@ const onPlotReady = (container: PlotContainer) => {
       smoothedParams.pointsPerPixel = lerp(smoothedParams.pointsPerPixel, params.pointsPerPixel, speed);
       smoothedParams.presetIndex = lerp(smoothedParams.presetIndex, params.presetIndex, speed);
       
-      // We keep count strictly as target to avoid buffer issues, but visual ones are smoothed
+      // Sync non-smoothed/boolean parameters
       smoothedParams.count = params.count;
+      smoothedParams.adaptive = params.adaptive;
+      smoothedParams.autoSubsampling = params.autoSubsampling;
+      smoothedParams.autoCulling = params.autoCulling;
+      smoothedParams.color = params.color;
+      smoothedParams.borderColor = params.borderColor;
+      smoothedParams.mode = params.mode;
 
       const viewport = plotContainer.getViewportStats();
       const elapsed = params.autoUpdate ? time / 1000 : 0;
@@ -135,8 +141,6 @@ const initPlot = () => {
   
   if (params.mode === 'Points') {
     currentPlot = new FastPlot(capacity, color);
-  } else if (params.mode === 'Instanced') {
-    currentPlot = new InstancedPlot(capacity, color);
   } else if (params.mode === 'Lines') {
     currentPlot = new LinePlot(capacity, color);
   }

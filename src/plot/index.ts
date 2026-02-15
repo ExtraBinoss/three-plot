@@ -1,6 +1,5 @@
 export * from './PlotContainer';
 export * from './point/PointPlot';
-export * from './instancedPoints/InstancedPointPlot';
 export * from './line/LinePlot';
 
 import { PlotContainer } from './PlotContainer';
