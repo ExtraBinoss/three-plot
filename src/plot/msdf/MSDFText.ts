@@ -65,8 +65,8 @@ export class MSDFText {
     private instances: TextInstance[] = [];
     private capacity: number;
 
-    constructor(capacity: number = 2000) {
-        this.capacity = capacity;
+    constructor(initialCapacity: number = 100) {
+        this.capacity = initialCapacity;
         this.material = new THREE.ShaderMaterial({
             vertexShader: msdfVert,
             fragmentShader: msdfFrag,
@@ -76,13 +76,34 @@ export class MSDFText {
             depthWrite: false
         });
 
-        const geometry = new THREE.PlaneGeometry(1, 1);
-        geometry.setAttribute('aUvOffset', new THREE.InstancedBufferAttribute(new Float32Array(capacity * 4), 4));
-        geometry.setAttribute('aColor', new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3), 3));
+        this.mesh = this.createMesh(this.capacity);
+    }
 
-        this.mesh = new THREE.InstancedMesh(geometry, this.material, capacity);
-        this.mesh.count = 0;
-        this.mesh.frustumCulled = false;
+    private createMesh(cap: number): THREE.InstancedMesh {
+        const geometry = new THREE.PlaneGeometry(1, 1);
+        geometry.setAttribute('aUvOffset', new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4));
+        geometry.setAttribute('aColor', new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3));
+        const mesh = new THREE.InstancedMesh(geometry, this.material, cap);
+        mesh.count = 0;
+        mesh.frustumCulled = false;
+        return mesh;
+    }
+
+    private grow(required: number) {
+        // Conservative growth: required + 5% padding
+        const newCap = Math.max(Math.ceil(required * 1.05), required + 10);
+        
+        const oldMesh = this.mesh;
+        const newMesh = this.createMesh(newCap);
+        
+        if (oldMesh.parent) {
+            oldMesh.parent.add(newMesh);
+            oldMesh.parent.remove(oldMesh);
+        }
+
+        oldMesh.geometry.dispose();
+        this.mesh = newMesh;
+        this.capacity = newCap;
     }
 
     public async load(fontUrl: string, textureUrl: string) {
@@ -122,6 +143,15 @@ export class MSDFText {
 
     public update() {
         if (!this.fontData) return;
+
+        let totalNeeded = 0;
+        for (const inst of this.instances) {
+            totalNeeded += inst.text.length;
+        }
+
+        if (totalNeeded > this.capacity) {
+            this.grow(totalNeeded);
+        }
 
         let glyphIndex = 0;
         const matArray = this.mesh.instanceMatrix.array as Float32Array;
@@ -166,11 +196,10 @@ export class MSDFText {
                 const px = pos.x + alignOffsetX + (cursorX + char.xoffset + char.width / 2) * s;
                 const py = pos.y - (char.yoffset + char.height / 2) * s;
 
-                // Column-major matrix filling (optimized)
-                matArray[m + 0] = charW;  matArray[m + 1] = 0;      matArray[m + 2] = 0;      matArray[m + 3] = 0;
-                matArray[m + 4] = 0;      matArray[m + 5] = charH;  matArray[m + 6] = 0;      matArray[m + 7] = 0;
-                matArray[m + 8] = 0;      matArray[m + 9] = 0;      matArray[m + 10] = 1;     matArray[m + 11] = 0;
-                matArray[m + 12] = px;    matArray[m + 13] = py;    matArray[m + 14] = pos.z; matArray[m + 15] = 1;
+                matArray[m + 0] = charW; matArray[m + 1] = 0; matArray[m + 2] = 0; matArray[m + 3] = 0;
+                matArray[m + 4] = 0; matArray[m + 5] = charH; matArray[m + 6] = 0; matArray[m + 7] = 0;
+                matArray[m + 8] = 0; matArray[m + 9] = 0; matArray[m + 10] = 1; matArray[m + 11] = 0;
+                matArray[m + 12] = px; matArray[m + 13] = py; matArray[m + 14] = pos.z; matArray[m + 15] = 1;
 
                 const u = glyphIndex * 4;
                 uvArray[u + 0] = char.x / scaleW;
@@ -179,9 +208,7 @@ export class MSDFText {
                 uvArray[u + 3] = char.height / scaleH;
 
                 const c = glyphIndex * 3;
-                colArray[c + 0] = color.r;
-                colArray[c + 1] = color.g;
-                colArray[c + 2] = color.b;
+                colArray[c + 0] = color.r; colArray[c + 1] = color.g; colArray[c + 2] = color.b;
 
                 cursorX += char.xadvance;
                 glyphIndex++;
@@ -204,6 +231,13 @@ export class MSDFText {
             w += charMap.get(charStr)?.xadvance ?? 20;
         }
         return w;
+    }
+
+    public getStats() {
+        return {
+            count: this.mesh.count,
+            capacity: this.capacity
+        };
     }
 
     public get meshObj() { return this.mesh; }

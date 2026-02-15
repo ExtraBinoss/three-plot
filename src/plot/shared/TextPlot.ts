@@ -10,7 +10,7 @@ export class TextPlot implements Plot<TextPlotParams> {
     private engine: MSDFText;
     private params: TextPlotParams = { offset: { x: 0, y: 0 } };
 
-    constructor(capacity: number = 2000) {
+    constructor(capacity: number = 100) {
         this.engine = new MSDFText(capacity);
     }
 
@@ -18,9 +18,6 @@ export class TextPlot implements Plot<TextPlotParams> {
         await this.engine.load(fontJson, fontPng);
     }
 
-    /**
-     * Adds a text string to the plot. Returns this for chaining.
-     */
     public add(text: string, x: number, y: number, scale: number = 0.1, color: string | THREE.Color = '#ffffff', align: 'left' | 'center' | 'right' = 'left'): this {
         this.engine.addText(text, x, y, scale, color, align);
         return this;
@@ -38,7 +35,11 @@ export class TextPlot implements Plot<TextPlotParams> {
     public get mesh() { return this.engine.meshObj; }
     
     public getDrawStats() { 
-        return { total: this.engine.meshObj.count, visible: this.engine.meshObj.count }; 
+        const stats = this.engine.getStats();
+        return { 
+            total: stats.capacity, 
+            visible: stats.count 
+        }; 
     }
 
     public clear() {

@@ -21,20 +21,23 @@
     </div>
 
     <div class="global-stats">
-      <div class="stat-pill">Auto-Labeling MSDF API</div>
+      <div class="stat-pill" v-if="textStats">
+        MSDF Buffer: <b>{{ textStats.visible }}</b> / <b>{{ textStats.total }}</b> glyphes
+      </div>
       <div class="stat-pill">Total GPU Points: <b>{{ (pointCount * 3).toLocaleString() }}</b></div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onUnmounted } from 'vue';
+import { ref, watch, onUnmounted, reactive } from 'vue';
 import PlotView from '../PlotView.vue';
 import { type PlotContainer, type LinePlot, type AxisPlot, type TextPlot } from '../../plot';
 
 const pointCount = 1000;
 const speed = ref(1.0);
 const spread = ref(80);
+const textStats = reactive({ total: 0, visible: 0 });
 
 const plotOptions = {
     font: {
@@ -51,15 +54,12 @@ let textLayer: TextPlot;
 const onPlotReady = (container: PlotContainer) => {
   containerInstance = container;
   
-  // 1. Setup Text Layer FIRST
-  textLayer = container.text(2000);
+  textLayer = container.text(); // Minimal default allocation
 
-  // 2. Setup Axes with Auto-Labels
   redAxis = container.axis('#ff4466').ticks(50, 10).labels(textLayer, 0.07, '#ff4466');
   greenAxis = container.axis('#44ff88').ticks(50, 10).labels(textLayer, 0.07, '#44ff88');
   blueAxis = container.axis('#44aaff').ticks(50, 10).labels(textLayer, 0.07, '#44aaff');
 
-  // 3. Setup Plots
   redPlot = container.line(pointCount, '#ff4466').amplitude(50).frequency(0.05).preset(4);
   greenPlot = container.line(pointCount, '#44ff88').amplitude(50).frequency(0.05).preset(0);
   bluePlot = container.line(pointCount, '#44aaff').amplitude(50).frequency(0.05).preset(5);
@@ -68,10 +68,14 @@ const onPlotReady = (container: PlotContainer) => {
       if (textLayer) {
           textLayer.clear();
           const s = spread.value;
-          // Add custom permanent titles each frame since we clear
           textLayer.add("SIGNAL: HARMONIC", -200, s + 65, 0.08, "#ff4466");
           textLayer.add("SIGNAL: SINE", -200, 65, 0.08, "#44ff88");
           textLayer.add("SIGNAL: CHAOS", -200, -s + 65, 0.08, "#44aaff");
+          
+          // Capture stats for UI
+          const ds = textLayer.getDrawStats();
+          textStats.total = ds.total;
+          textStats.visible = ds.visible;
       }
   };
 
