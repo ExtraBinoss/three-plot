@@ -28,10 +28,10 @@ float noise(float x) {
     return mix(hash(i), hash(i + 1.0), u);
 }
 
-float hash3(vec3 p) {
-    p = fract(p * 0.3183099 + 0.1);
-    p *= 17.0;
-    return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+float hash3(vec3 p3) {
+	p3  = fract(p3 * .1031);
+    p3 += dot(p3, p3.zyx + 31.32);
+    return fract((p3.x + p3.y) * p3.z);
 }
 
 float noise3D(in vec3 x) {
@@ -67,7 +67,8 @@ vec4 getPlotPos(float index) {
         y = (noise(t) * 2.0 - 1.0) * uAmplitude;
     }
     else if (preset == 7) {
-        y = (noise3D(vec3(x * 0.05, t, uTime * 0.5)) * 2.0 - 1.0) * uAmplitude;
+        // Multiplication de la fréquence par 0.5 pour avoir plus de détails spatiaux
+        y = (noise3D(vec3(x * uFrequency * 0.5, 0.0, uTime * 0.5)) * 2.0 - 1.0) * uAmplitude;
     }
     else {
         // This part will be replaced by custom signal logic
