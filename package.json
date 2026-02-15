@@ -1,6 +1,6 @@
 {
   "name": "three-plot",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "description": "High-performance Three.js plotting library using GPU instancing and shaders",
   "main": "./dist/three-plot.umd.cjs",
