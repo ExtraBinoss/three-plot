@@ -1,15 +1,15 @@
-import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { LinePlot } from './line/LinePlot';
 import { PointPlot } from './point/PointPlot';
 import { AxisPlot } from './axis/AxisPlot';
 import { LegendPlot } from './axis/LegendPlot';
 import { TextPlot } from './msdf/TextPlot';
+import { WebGLRenderer, Scene, OrthographicCamera, Object3D, Color, MOUSE } from 'three';
 
 export interface PlotContainerOptions {
-    renderer?: THREE.WebGLRenderer;
-    scene?: THREE.Scene;
-    camera?: THREE.OrthographicCamera;
+    renderer?: WebGLRenderer;
+    scene?: Scene;
+    camera?: OrthographicCamera;
     autoRender?: boolean;
     antialias?: boolean;
     alpha?: boolean;
@@ -24,15 +24,15 @@ export interface Plot<T = any> {
     dispose(): void;
     getDrawStats(): { total: number, visible: number };
     setParams(params: Partial<T>): this;
-    mesh: THREE.Object3D;
+    mesh: Object3D;
 }
 
 export type PlotType = 'line' | 'point' | 'axis' | 'text' | 'legend';
 
 export class PlotContainer {
-    public scene: THREE.Scene;
-    public camera: THREE.OrthographicCamera;
-    public renderer: THREE.WebGLRenderer;
+    public scene: Scene;
+    public camera: OrthographicCamera;
+    public renderer: WebGLRenderer;
     public controls: OrbitControls;
     
     private container: HTMLElement;
@@ -53,9 +53,9 @@ export class PlotContainer {
         this.autoRender = options.autoRender !== false;
         this.fontConfig = options.font;
         
-        this.scene = options.scene || new THREE.Scene();
+        this.scene = options.scene || new Scene();
         if (!options.scene) {
-            this.scene.background = new THREE.Color(0x0a0a0a);
+            this.scene.background = new Color(0x0a0a0a);
         }
 
         const width = this.container.clientWidth;
@@ -63,7 +63,7 @@ export class PlotContainer {
         const aspect = width / height;
         const viewSize = 250; 
 
-        this.camera = options.camera || new THREE.OrthographicCamera(
+        this.camera = options.camera || new OrthographicCamera(
             -viewSize * aspect, viewSize * aspect,
             viewSize, -viewSize,
             0.1, 2000
@@ -77,7 +77,7 @@ export class PlotContainer {
             this.isExternalRenderer = true;
         } else {
             try {
-                this.renderer = new THREE.WebGLRenderer({ 
+                this.renderer = new WebGLRenderer({ 
                     antialias: options.antialias ?? false, 
                     alpha: options.alpha ?? false, 
                     powerPreference: 'high-performance',
@@ -100,9 +100,9 @@ export class PlotContainer {
         this.controls.enableDamping = true;
         this.controls.enableRotate = false;
         this.controls.mouseButtons = {
-            LEFT: THREE.MOUSE.PAN,
-            MIDDLE: THREE.MOUSE.DOLLY,
-            RIGHT: THREE.MOUSE.ROTATE
+            LEFT: MOUSE.PAN,
+            MIDDLE: MOUSE.DOLLY,
+            RIGHT: MOUSE.ROTATE
         };
         
         this.resizeObserver = new ResizeObserver(() => this.onResize());
@@ -129,13 +129,13 @@ export class PlotContainer {
         return this;
     }
 
-    public add<T extends Plot>(type: PlotType, countOrColor: any, color?: string | THREE.Color): T {
+    public add<T extends Plot>(type: PlotType, countOrColor: any, color?: string | Color): T {
         let plot: any;
         
         if (type === 'line') {
-            plot = new LinePlot(countOrColor, new THREE.Color(color || '#00ff88'));
+            plot = new LinePlot(countOrColor, new Color(color || '#00ff88'));
         } else if (type === 'point') {
-            plot = new PointPlot(countOrColor, new THREE.Color(color || '#00ff88'));
+            plot = new PointPlot(countOrColor, new Color(color || '#00ff88'));
         } else if (type === 'axis') {
             plot = new AxisPlot(countOrColor || '#ffffff');
         } else if (type === 'legend') {
@@ -160,9 +160,9 @@ export class PlotContainer {
         return plot as T;
     }
 
-    public line(count: number, color?: string | THREE.Color) { return this.add<LinePlot>('line', count, color); }
-    public point(count: number, color?: string | THREE.Color) { return this.add<PointPlot>('point', count, color); }
-    public axis(color?: string | THREE.Color) { return this.add<AxisPlot>('axis', color); }
+    public line(count: number, color?: string | Color) { return this.add<LinePlot>('line', count, color); }
+    public point(count: number, color?: string | Color) { return this.add<PointPlot>('point', count, color); }
+    public axis(color?: string | Color) { return this.add<AxisPlot>('axis', color); }
     public legend() { return this.add<LegendPlot>('legend', null); }
     public text(capacity?: number) { return this.add<TextPlot>('text', capacity); }
 

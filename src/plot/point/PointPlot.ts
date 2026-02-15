@@ -1,31 +1,31 @@
-import * as THREE from 'three';
 import vertexShader from './vertex.glsl';
 import fragmentShader from './fragment.glsl';
 import { type PointPlotParams, type ViewportParams } from '../shared/types';
 import { type Plot } from '../PlotContainer';
+import { type IUniform, Color, Vector2, Points, BufferGeometry, ShaderMaterial, BufferAttribute, AdditiveBlending } from 'three';
 
 interface PointPlotUniforms {
-    uTime: THREE.IUniform<number>;
-    uCount: THREE.IUniform<number>;
-    uFrequency: THREE.IUniform<number>;
-    uAmplitude: THREE.IUniform<number>;
-    uPlotWidth: THREE.IUniform<number>;
-    uPreset: THREE.IUniform<number>;
-    uPointSize: THREE.IUniform<number>;
-    uColor: THREE.IUniform<THREE.Color>;
-    uAdaptive: THREE.IUniform<number>;
-    uLodFactor: THREE.IUniform<number>;
-    uOffset: THREE.IUniform<THREE.Vector2>;
+    uTime: IUniform<number>;
+    uCount: IUniform<number>;
+    uFrequency: IUniform<number>;
+    uAmplitude: IUniform<number>;
+    uPlotWidth: IUniform<number>;
+    uPreset: IUniform<number>;
+    uPointSize: IUniform<number>;
+    uColor: IUniform<Color>;
+    uAdaptive: IUniform<number>;
+    uLodFactor: IUniform<number>;
+    uOffset: IUniform<Vector2>;
 }
 
 export class PointPlot implements Plot<PointPlotParams> {
-    private points: THREE.Points;
-    private geometry: THREE.BufferGeometry;
-    private material: THREE.ShaderMaterial;
+    private points: Points;
+    private geometry: BufferGeometry;
+    private material: ShaderMaterial;
     private params: PointPlotParams;
     private static customInjection: string = "";
 
-    constructor(maxCount: number, baseColor: THREE.Color = new THREE.Color(0x00ff88)) {
+    constructor(maxCount: number, baseColor: Color = new Color(0x00ff88)) {
         this.params = {
             count: maxCount,
             frequency: 0.1,
@@ -42,27 +42,27 @@ export class PointPlot implements Plot<PointPlotParams> {
 
         this.geometry = this.initGeometry(maxCount);
         this.material = this.initMaterial(maxCount, baseColor);
-        this.points = new THREE.Points(this.geometry, this.material);
+        this.points = new Points(this.geometry, this.material);
         this.points.frustumCulled = false;
     }
 
-    private initGeometry(maxCount: number): THREE.BufferGeometry {
-        const geometry = new THREE.BufferGeometry();
+    private initGeometry(maxCount: number): BufferGeometry {
+        const geometry = new BufferGeometry();
         const indices = new Float32Array(maxCount);
         for (let i = 0; i < maxCount; i++) indices[i] = i;
-        geometry.setAttribute('pIndex', new THREE.BufferAttribute(indices, 1));
+        geometry.setAttribute('pIndex', new BufferAttribute(indices, 1));
         geometry.setDrawRange(0, maxCount);
         return geometry;
     }
 
-    private initMaterial(maxCount: number, baseColor: THREE.Color): THREE.ShaderMaterial {
+    private initMaterial(maxCount: number, baseColor: Color): ShaderMaterial {
         const regex = /else\s*{\s*y\s*=\s*0\.0;\s*}/g;
         const finalVertex = vertexShader.replace(
             regex,
             PointPlot.customInjection || "else { y = 0.0; }"
         );
 
-        return new THREE.ShaderMaterial({
+        return new ShaderMaterial({
             uniforms: {
                 uTime: { value: 0 },
                 uCount: { value: Number(maxCount) },
@@ -74,14 +74,14 @@ export class PointPlot implements Plot<PointPlotParams> {
                 uColor: { value: baseColor.clone() },
                 uAdaptive: { value: 1.0 }, 
                 uLodFactor: { value: 1.0 },
-                uOffset: { value: new THREE.Vector2(0, 0) }
+                uOffset: { value: new Vector2(0, 0) }
             },
             vertexShader: finalVertex,
             fragmentShader,
             transparent: false,
             depthWrite: false,
             depthTest: false,
-            blending: THREE.AdditiveBlending
+            blending: AdditiveBlending
         });
     }
 
@@ -90,7 +90,7 @@ export class PointPlot implements Plot<PointPlotParams> {
         return this;
     }
 
-    public color(val: string | THREE.Color) { return this.setParams({ color: val }); }
+    public color(val: string | Color) { return this.setParams({ color: val }); }
     public amplitude(val: number) { return this.setParams({ amplitude: val }); }
     public frequency(val: number) { return this.setParams({ frequency: val }); }
     public width(val: number) { return this.setParams({ width: val }); }
@@ -146,7 +146,7 @@ export class PointPlot implements Plot<PointPlotParams> {
         this.geometry.setDrawRange(drawStart, drawCount);
     }
 
-    private updateUniform<T>(uniform: THREE.IUniform<T>, value: T) {
+    private updateUniform<T>(uniform: IUniform<T>, value: T) {
         if (uniform.value !== value) uniform.value = value;
     }
 

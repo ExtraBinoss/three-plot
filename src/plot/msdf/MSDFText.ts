@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import { Vector3, Color, InstancedMesh, ShaderMaterial, DoubleSide, PlaneGeometry, InstancedBufferAttribute, TextureLoader, LinearFilter } from 'three';
 import { type FontData, type Char } from './FontData';
 
 const msdfVert = `
@@ -51,15 +51,15 @@ void main() {
 
 export interface TextInstance {
     text: string;
-    position: THREE.Vector3;
+    position: Vector3;
     scale: number;
-    color: THREE.Color;
+    color: Color;
     align: 'left' | 'center' | 'right';
 }
 
 export class MSDFText {
-    private mesh: THREE.InstancedMesh;
-    private material: THREE.ShaderMaterial;
+    private mesh: InstancedMesh;
+    private material: ShaderMaterial;
     private charMap: Map<string, Char> = new Map();
     private fontData: FontData | null = null;
     private instances: TextInstance[] = [];
@@ -67,23 +67,23 @@ export class MSDFText {
 
     constructor(initialCapacity: number = 100) {
         this.capacity = initialCapacity;
-        this.material = new THREE.ShaderMaterial({
+        this.material = new ShaderMaterial({
             vertexShader: msdfVert,
             fragmentShader: msdfFrag,
             uniforms: { uMap: { value: null } },
             transparent: true,
-            side: THREE.DoubleSide,
+            side: DoubleSide,
             depthWrite: false
         });
 
         this.mesh = this.createMesh(this.capacity);
     }
 
-    private createMesh(cap: number): THREE.InstancedMesh {
-        const geometry = new THREE.PlaneGeometry(1, 1);
-        geometry.setAttribute('aUvOffset', new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4));
-        geometry.setAttribute('aColor', new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3));
-        const mesh = new THREE.InstancedMesh(geometry, this.material, cap);
+    private createMesh(cap: number): InstancedMesh {
+        const geometry = new PlaneGeometry(1, 1);
+        geometry.setAttribute('aUvOffset', new InstancedBufferAttribute(new Float32Array(cap * 4), 4));
+        geometry.setAttribute('aColor', new InstancedBufferAttribute(new Float32Array(cap * 3), 3));
+        const mesh = new InstancedMesh(geometry, this.material, cap);
         mesh.count = 0;
         mesh.frustumCulled = false;
         return mesh;
@@ -109,7 +109,7 @@ export class MSDFText {
     public async load(fontUrl: string, textureUrl: string) {
         const [fontRes, texture] = await Promise.all([
             fetch(fontUrl).then(res => res.json()),
-            new THREE.TextureLoader().loadAsync(textureUrl)
+            new TextureLoader().loadAsync(textureUrl)
         ]);
 
         this.fontData = fontRes;
@@ -117,8 +117,8 @@ export class MSDFText {
             this.fontData.chars.forEach(c => this.charMap.set(c.char, c));
         }
         
-        texture.minFilter = THREE.LinearFilter;
-        texture.magFilter = THREE.LinearFilter;
+        texture.minFilter = LinearFilter;
+        texture.magFilter = LinearFilter;
         texture.generateMipmaps = false;
         
         if (this.material.uniforms.uMap) {
@@ -126,12 +126,12 @@ export class MSDFText {
         }
     }
 
-    public addText(text: string, x: number, y: number, scale: number = 0.1, color: string | THREE.Color = '#ffffff', align: 'left' | 'center' | 'right' = 'left'): this {
+    public addText(text: string, x: number, y: number, scale: number = 0.1, color: string | Color = '#ffffff', align: 'left' | 'center' | 'right' = 'left'): this {
         this.instances.push({
             text,
-            position: new THREE.Vector3(x, y, 0),
+            position: new Vector3(x, y, 0),
             scale,
-            color: new THREE.Color(color as any),
+            color: new Color(color as any),
             align
         });
         return this;
@@ -155,9 +155,9 @@ export class MSDFText {
 
         let glyphIndex = 0;
         const matArray = this.mesh.instanceMatrix.array as Float32Array;
-        const uvAttr = this.mesh.geometry.getAttribute('aUvOffset') as THREE.InstancedBufferAttribute;
+        const uvAttr = this.mesh.geometry.getAttribute('aUvOffset') as InstancedBufferAttribute;
         const uvArray = uvAttr.array as Float32Array;
-        const colAttr = this.mesh.geometry.getAttribute('aColor') as THREE.InstancedBufferAttribute;
+        const colAttr = this.mesh.geometry.getAttribute('aColor') as InstancedBufferAttribute;
         const colArray = colAttr.array as Float32Array;
         
         const scaleW = this.fontData.common.scaleW;

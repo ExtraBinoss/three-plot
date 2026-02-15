@@ -1,6 +1,6 @@
-import * as THREE from 'three';
 import { MSDFText } from './MSDFText';
 import { type Plot } from '../PlotContainer';
+import type { Color } from 'three';
 
 export interface TextPlotParams {
     offset: { x: number, y: number };
@@ -18,7 +18,7 @@ export class TextPlot implements Plot<TextPlotParams> {
         await this.engine.load(fontJson, fontPng);
     }
 
-    public add(text: string, x: number, y: number, scale: number = 0.1, color: string | THREE.Color = '#ffffff', align: 'left' | 'center' | 'right' = 'left'): this {
+    public add(text: string, x: number, y: number, scale: number = 0.1, color: string | Color = '#ffffff', align: 'left' | 'center' | 'right' = 'left'): this {
         this.engine.addText(text, x, y, scale, color, align);
         return this;
     }

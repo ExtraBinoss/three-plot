@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import { Color, Object3D } from 'three';
 import { type Plot } from '../PlotContainer';
 import { type TextPlot } from '../msdf/TextPlot';
 
@@ -7,7 +7,7 @@ export interface LegendPlotParams {
     maxX: number;
     minY: number;
     maxY: number;
-    color: string | THREE.Color;
+    color: string | Color;
     size: number;
     precision: number;
     showMin: boolean;
@@ -20,7 +20,7 @@ export interface LegendPlotParams {
 export class LegendPlot implements Plot<LegendPlotParams> {
     private params: LegendPlotParams;
     private textEngine?: TextPlot;
-    private dummyMesh: THREE.Object3D;
+    private dummyMesh: Object3D;
 
     constructor() {
         this.params = {
@@ -37,7 +37,7 @@ export class LegendPlot implements Plot<LegendPlotParams> {
             position: 'right',
             offset: { x: 0, y: 0 }
         };
-        this.dummyMesh = new THREE.Object3D();
+        this.dummyMesh = new Object3D();
     }
 
     public setParams(params: Partial<LegendPlotParams>): this {
@@ -47,7 +47,7 @@ export class LegendPlot implements Plot<LegendPlotParams> {
 
     public rangeY(min: number, max: number) { return this.setParams({ minY: min, maxY: max }); }
     public rangeX(min: number, max: number) { return this.setParams({ minX: min, maxX: max }); }
-    public color(val: string | THREE.Color) { return this.setParams({ color: val }); }
+    public color(val: string | Color) { return this.setParams({ color: val }); }
     public size(val: number) { return this.setParams({ size: val }); }
     public precision(val: number) { return this.setParams({ precision: val }); }
     public side(val: 'left' | 'right' | 'both') { return this.setParams({ position: val }); }

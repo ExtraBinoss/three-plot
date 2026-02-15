@@ -1,11 +1,11 @@
-import * as THREE from 'three';
 import vertexShader from './axis_vertex.glsl';
 import fragmentShader from './axis_fragment.glsl';
 import { type Plot } from '../PlotContainer';
 import { type TextPlot } from '../msdf/TextPlot';
+import { Color, type IUniform, Vector2, Mesh, PlaneGeometry, ShaderMaterial, AdditiveBlending } from 'three';
 
 export interface AxisPlotParams {
-    color: string | THREE.Color;
+    color: string | Color;
     offset: { x: number, y: number };
     tickStep: number;
     tickSize: number;
@@ -16,35 +16,35 @@ export interface AxisPlotParams {
     minY: number;
     maxY: number;
     labelSize: number;
-    labelColor: string | THREE.Color;
+    labelColor: string | Color;
     showLabels: boolean;
     labelPrecision: number;
     thickness: number;
 }
 
 interface AxisPlotUniforms {
-    uColor: THREE.IUniform<THREE.Color>;
-    uOffset: THREE.IUniform<THREE.Vector2>;
-    uTickStep: THREE.IUniform<number>;
-    uTickSize: THREE.IUniform<number>;
-    uSubTicks: THREE.IUniform<number>;
-    uSubTickSize: THREE.IUniform<number>;
-    uRangeX: THREE.IUniform<THREE.Vector2>;
-    uRangeY: THREE.IUniform<THREE.Vector2>;
-    uZoom: THREE.IUniform<number>;
-    uThickness: THREE.IUniform<number>;
+    uColor: IUniform<Color>;
+    uOffset: IUniform<Vector2>;
+    uTickStep: IUniform<number>;
+    uTickSize: IUniform<number>;
+    uSubTicks: IUniform<number>;
+    uSubTickSize: IUniform<number>;
+    uRangeX: IUniform<Vector2>;
+    uRangeY: IUniform<Vector2>;
+    uZoom: IUniform<number>;
+    uThickness: IUniform<number>;
 }
 
 export class AxisPlot implements Plot<AxisPlotParams> {
-    private meshObj: THREE.Mesh;
-    private geometry: THREE.PlaneGeometry;
-    private material: THREE.ShaderMaterial;
+    private meshObj: Mesh;
+    private geometry: PlaneGeometry;
+    private material: ShaderMaterial;
     private params: AxisPlotParams;
     private textEngine?: TextPlot;
 
-    constructor(color: string | THREE.Color = '#ffffff') {
+    constructor(color: string | Color = '#ffffff') {
         this.params = {
-            color: new THREE.Color(color),
+            color: new Color(color),
             offset: { x: 0, y: 0 },
             tickStep: 50,
             tickSize: 8,
@@ -61,17 +61,17 @@ export class AxisPlot implements Plot<AxisPlotParams> {
             thickness: 1.5
         };
 
-        this.geometry = new THREE.PlaneGeometry(4000, 4000);
-        this.material = new THREE.ShaderMaterial({
+        this.geometry = new PlaneGeometry(4000, 4000);
+        this.material = new ShaderMaterial({
             uniforms: {
                 uColor: { value: this.params.color },
-                uOffset: { value: new THREE.Vector2(0, 0) },
+                uOffset: { value: new Vector2(0, 0) },
                 uTickStep: { value: 50 },
                 uTickSize: { value: 8 },
                 uSubTicks: { value: 0 },
                 uSubTickSize: { value: 4 },
-                uRangeX: { value: new THREE.Vector2(-200, 200) },
-                uRangeY: { value: new THREE.Vector2(-50, 50) },
+                uRangeX: { value: new Vector2(-200, 200) },
+                uRangeY: { value: new Vector2(-50, 50) },
                 uZoom: { value: 1.0 },
                 uThickness: { value: 1.5 }
             },
@@ -79,10 +79,10 @@ export class AxisPlot implements Plot<AxisPlotParams> {
             fragmentShader,
             transparent: true,
             depthWrite: false,
-            blending: THREE.AdditiveBlending
+            blending: AdditiveBlending
         });
 
-        this.meshObj = new THREE.Mesh(this.geometry, this.material);
+        this.meshObj = new Mesh(this.geometry, this.material);
         this.meshObj.position.z = -0.1;
     }
 
@@ -91,7 +91,7 @@ export class AxisPlot implements Plot<AxisPlotParams> {
         return this;
     }
 
-    public color(val: string | THREE.Color) { return this.setParams({ color: val }); }
+    public color(val: string | Color) { return this.setParams({ color: val }); }
     public offset(x: number, y: number) { return this.setParams({ offset: { x, y } }); }
     public ticks(step: number, size: number = 8) { return this.setParams({ tickStep: step, tickSize: size }); }
     public subTicks(count: number, size: number = 4) { return this.setParams({ subTicks: count, subTickSize: size }); }
@@ -100,7 +100,7 @@ export class AxisPlot implements Plot<AxisPlotParams> {
     public rangeX(min: number, max: number) { return this.setParams({ minX: min, maxX: max }); }
     public thickness(val: number) { return this.setParams({ thickness: val }); }
     
-    public labels(tp: TextPlot, size: number = 0.06, color: string | THREE.Color = '#888') {
+    public labels(tp: TextPlot, size: number = 0.06, color: string | Color = '#888') {
         this.textEngine = tp;
         return this.setParams({ showLabels: true, labelSize: size, labelColor: color });
     }
@@ -156,7 +156,7 @@ export class AxisPlot implements Plot<AxisPlotParams> {
         }
     }
 
-    private updateUniform<T>(uniform: THREE.IUniform<T>, value: T) {
+    private updateUniform<T>(uniform: IUniform<T>, value: T) {
         if (uniform.value !== value) uniform.value = value;
     }
 
