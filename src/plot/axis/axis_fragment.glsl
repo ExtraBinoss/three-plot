@@ -31,10 +31,16 @@ void main() {
     // Calculate pixel size in world units
     float pixelSize = 1.0 / uZoom;
     
-    // Thicknesses in world units
-    float lineW = max(uThickness * pixelSize * 0.5, pixelSize * 0.5);
-    float tickW = max(uThickness * pixelSize * 0.4, pixelSize * 0.4);
-    float subTickW = max(uThickness * pixelSize * 0.25, pixelSize * 0.3);
+    // Calculate base alpha modulation for sub-pixel lines
+    // If thickness < 1.0, we keep it at 1px width but reduce alpha
+    float lineAlpha = clamp(uThickness, 0.0, 1.0);
+    float tickAlpha = clamp(uThickness * 0.8, 0.0, 1.0);
+    float subTickAlpha = clamp(uThickness * 0.5, 0.0, 1.0);
+
+    // Thicknesses in world units (clamped to at least 1px for geometry, alpha handles the rest)
+    float lineW = max(uThickness, 1.0) * pixelSize * 0.5;
+    float tickW = max(uThickness * 0.8, 0.8) * pixelSize * 0.5;
+    float subTickW = max(uThickness * 0.5, 0.5) * pixelSize * 0.5;
     
     // Limits
     float maxW = plotHeight * 0.05;
@@ -45,12 +51,12 @@ void main() {
     // 1. Axes
     float yAxis = 0.0;
     if (relPos.y >= uRangeY.x - 1.0 && relPos.y <= uRangeY.y + 1.0) {
-        yAxis = getLine(relPos.x - uRangeX.x, lineW);
+        yAxis = getLine(relPos.x - uRangeX.x, lineW) * lineAlpha;
     }
     
     float xAxis = 0.0;
     if (relPos.x >= uRangeX.x - 1.0 && relPos.x <= uRangeX.y + 1.0) {
-        xAxis = getLine(relPos.y, lineW);
+        xAxis = getLine(relPos.y, lineW) * lineAlpha;
     }
     
     // 2. Ticks
@@ -62,11 +68,11 @@ void main() {
     if (relPos.y >= uRangeY.x && relPos.y <= uRangeY.y) {
         // Main Ticks
         if (relPos.x >= uRangeX.x && relPos.x <= uRangeX.x + currentTickSize) {
-            yTicks = getPeriodicTicks(relPos.y, uTickStep, tickW);
+            yTicks = getPeriodicTicks(relPos.y, uTickStep, tickW) * tickAlpha;
         }
         // Sub Ticks
         if (uSubTicks > 1.0 && relPos.x >= uRangeX.x && relPos.x <= uRangeX.x + currentSubTickSize) {
-            ySubTicks = getPeriodicTicks(relPos.y, uTickStep / uSubTicks, subTickW) * 0.6;
+            ySubTicks = getPeriodicTicks(relPos.y, uTickStep / uSubTicks, subTickW) * 0.6 * subTickAlpha;
         }
     }
     
@@ -75,11 +81,11 @@ void main() {
     if (relPos.x >= uRangeX.x && relPos.x <= uRangeX.y) {
         // Main Ticks
         if (abs(relPos.y) < currentTickSize) {
-            xTicks = getPeriodicTicks(relPos.x, uTickStep, tickW);
+            xTicks = getPeriodicTicks(relPos.x, uTickStep, tickW) * tickAlpha;
         }
         // Sub Ticks
         if (uSubTicks > 1.0 && abs(relPos.y) < currentSubTickSize) {
-            xSubTicks = getPeriodicTicks(relPos.x, uTickStep / uSubTicks, subTickW) * 0.6;
+            xSubTicks = getPeriodicTicks(relPos.x, uTickStep / uSubTicks, subTickW) * 0.6 * subTickAlpha;
         }
     }
     
@@ -88,5 +94,5 @@ void main() {
     
     if (finalAlpha < 0.01) discard;
     
-    gl_FragColor = vec4(uColor, finalAlpha * 0.7);
+    gl_FragColor = vec4(uColor, finalAlpha * 0.8);
 }

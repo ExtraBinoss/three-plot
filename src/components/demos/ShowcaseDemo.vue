@@ -45,7 +45,7 @@ const params = reactive({
   showAxis: true,
   showLabels: true,
   axisColor: '#ffffff',
-  axisThickness: 0.1,
+  axisThickness: 0.8,
   subTicks: 5,
   labelColor: '#888888',
   labelPrecision: 0,
@@ -53,6 +53,8 @@ const params = reactive({
   showLegend: true,
   legendSide: 'right' as 'left' | 'right' | 'both',
   legendPrecision: 1,
+  legendColor: '#ffffff',
+  legendSize: 0.08,
   customGLSL: "sin(t * 10.0) * cos(x * 0.01) * uAmplitude"
 });
 
@@ -137,7 +139,8 @@ const rebuildScene = () => {
   if (params.showLegend && textLayer) {
       activeLegend = containerInstance.legend()
                     .use(textLayer)
-                    .color(params.labelColor)
+                    .color(params.legendColor)
+                    .size(params.legendSize)
                     .precision(params.legendPrecision)
                     .side(params.legendSide);
   } else {
@@ -189,7 +192,8 @@ const syncParams = () => {
       const halfW = params.width * 0.5;
       activeLegend.rangeX(-halfW, halfW)
                   .rangeY(-params.amplitude, params.amplitude)
-                  .color(params.labelColor)
+                  .color(params.legendColor)
+                  .size(params.legendSize)
                   .precision(params.legendPrecision)
                   .side(params.legendSide);
   }
@@ -221,7 +225,9 @@ watch(
     presetIndex: params.presetIndex,
     showLabels: params.showLabels,
     legendSide: params.legendSide,
-    legendPrecision: params.legendPrecision
+    legendPrecision: params.legendPrecision,
+    legendColor: params.legendColor,
+    legendSize: params.legendSize
   }),
   () => {
     syncParams();
@@ -265,8 +271,10 @@ const setupGui = () => {
   folderAxis.add(params, 'labelPrecision', 0, 5, 1).name('Precision');
 
   const folderLegend = gui.addFolder('Legend (Min/Max)');
-  folderLegend.add(params, 'showLegend').name('Show Legend');
+  folderLegend.add(params, 'showLegend').name('Show Legend').onChange(() => rebuildScene());
   folderLegend.add(params, 'legendSide', ['left', 'right', 'both']).name('Position');
+  folderLegend.addColor(params, 'legendColor').name('Color');
+  folderLegend.add(params, 'legendSize', 0.01, 0.5, 0.01).name('Text Size');
   folderLegend.add(params, 'legendPrecision', 0, 5, 1).name('Decimals');
 };
 
