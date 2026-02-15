@@ -3,16 +3,17 @@
     <PlotView @ready="onPlotReady" />
     <div class="stats" v-if="stats">
       <div class="stat-group">
-        <div class="stat-main">FPS: {{ fps }}</div>
+        <div class="stat-main">FPS: {{ fps }} <span class="ms">({{ frameTime.toFixed(1) }}ms)</span></div>
         <div class="stat-sub">Total: {{ params.count.toLocaleString() }} pts</div>
       </div>
       <div class="stat-group profiling" v-if="gpuStats">
-        <div class="stat-row"><span>GPU Points:</span> <b>{{ gpuStats.points.toLocaleString() }}</b></div>
-        <div class="stat-row"><span>Actual Index:</span> <b>{{ params.actualPoints.toLocaleString() }}</b></div>
+        <div class="stat-row" v-if="params.mode === 'Points'"><span>GPU Points:</span> <b>{{ gpuStats.points.toLocaleString() }}</b></div>
+        <div class="stat-row" v-else><span>GPU Triangles:</span> <b>{{ gpuStats.triangles.toLocaleString() }}</b></div>
+        <div class="stat-row"><span>Visible Pts:</span> <b>{{ params.actualPoints.toLocaleString() }}</b></div>
         <div class="stat-row"><span>Draw Calls:</span> <b>{{ gpuStats.calls }}</b></div>
         <div class="stat-row"><span>Memory:</span> <b>{{ gpuStats.memory.geometries }} geom</b></div>
       </div>
-      <div class="hint">GPU-Powered 2D Plotter</div>
+      <div class="hint">{{ params.mode }} Mode Active</div>
     </div>
   </div>
 </template>
@@ -21,7 +22,7 @@
 import { ref, reactive, onMounted } from 'vue';
 import GUI from 'lil-gui';
 import PlotView from './components/PlotView.vue';
-import { PlotContainer, FastPlot } from './plot';
+import { PlotContainer, FastPlot, InstancedPlot } from './plot';
 import * as THREE from 'three';
 
 const presets = ['sine', 'saw', 'zigzag', 'ramp'];
@@ -40,13 +41,15 @@ const params = reactive({
   autoSubsampling: true,
   autoCulling: true,
   pointsPerPixel: 2.0,
-  actualPoints: 0
+  actualPoints: 0,
+  mode: 'Points'
 });
 
 let plotContainer: PlotContainer | null = null;
-let fastPlot: FastPlot | null = null;
+let currentPlot: FastPlot | InstancedPlot | null = null;
 const stats = ref(true);
 const fps = ref(0);
+const frameTime = ref(0);
 const gpuStats = ref<any>(null);
 let lastTime = performance.now();
 let frames = 0;
@@ -57,6 +60,7 @@ const onPlotReady = (container: PlotContainer) => {
   
   // Set the update callback to sync with the renderer's loop
   plotContainer.onUpdate = (time) => {
+    const start = performance.now();
     frames++;
     if (time >= lastTime + 1000) {
       fps.value = Math.round((frames * 1000) / (time - lastTime));
@@ -64,37 +68,50 @@ const onPlotReady = (container: PlotContainer) => {
       frames = 0;
     }
 
-    if (fastPlot && plotContainer) {
+    if (currentPlot && plotContainer) {
       const viewport = plotContainer.getViewportStats();
       const elapsed = params.autoUpdate ? time / 1000 : 0;
-      fastPlot.update(elapsed, params, viewport);
+      currentPlot.update(elapsed, params, viewport);
       
       // Update actual points drawn info
-      const drawRange = (fastPlot.mesh.geometry as THREE.BufferGeometry).drawRange;
-      params.actualPoints = drawRange.count;
+      const mesh = currentPlot.mesh;
+      if (mesh instanceof THREE.Points) {
+        params.actualPoints = mesh.geometry.drawRange.count;
+      } else if (mesh instanceof THREE.InstancedMesh) {
+        params.actualPoints = mesh.count;
+      }
       
       // Update real GPU info from renderer
       gpuStats.value = plotContainer.getRendererInfo();
     }
+    frameTime.value = performance.now() - start;
   };
 };
 
 const initPlot = () => {
   if (!plotContainer) return;
   
-  if (fastPlot) {
-    plotContainer.scene.remove(fastPlot.mesh);
+  if (currentPlot) {
+    plotContainer.scene.remove(currentPlot.mesh);
   }
   
   // High allocation for the webgl buffer, but we only draw what's needed
-  fastPlot = new FastPlot(2000000, new THREE.Color(params.color));
-  plotContainer.scene.add(fastPlot.mesh);
+  if (params.mode === 'Points') {
+    currentPlot = new FastPlot(2000000, new THREE.Color(params.color));
+  } else {
+    currentPlot = new InstancedPlot(2000000, new THREE.Color(params.color));
+  }
+  
+  plotContainer.scene.add(currentPlot.mesh);
 };
 
 const setupGui = () => {
   const gui = new GUI();
   
   const folderData = gui.addFolder('Data & Performance');
+  folderData.add(params, 'mode', ['Points', 'Instanced']).name('Rendering Mode').onChange(() => {
+    initPlot();
+  });
   folderData.add(params, 'count', 100, 2000000, 100).name('Total Data Points');
   folderData.add(params, 'autoSubsampling').name('Smart Subsampling');
   folderData.add(params, 'autoCulling').name('Frustum Culling');
@@ -112,7 +129,7 @@ const setupGui = () => {
   folderPlot.add(params, 'lodFactor', 0.01, 1.0, 0.01).name('GPU LOD Factor (Tail Clipping)');
   
   gui.addColor(params, 'color').name('Color').onChange((val: string) => {
-    const material = fastPlot?.mesh?.material as THREE.ShaderMaterial | undefined;
+    const material = currentPlot?.mesh?.material as THREE.ShaderMaterial | undefined;
     if (material && material.uniforms?.uColor) {
       material.uniforms.uColor.value.set(val);
     }
@@ -160,6 +177,13 @@ body, html, #app, .app {
     font-size: 20px;
     font-weight: 700;
     color: #00ff88;
+}
+
+.stat-main .ms {
+    font-size: 14px;
+    font-weight: 400;
+    color: #666;
+    margin-left: 4px;
 }
 
 .stat-sub {
