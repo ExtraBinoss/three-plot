@@ -2,7 +2,7 @@ import vertexShader from './line_vertex.glsl';
 import fragmentShader from './line_fragment.glsl';
 import { type LinePlotParams, type ViewportParams } from '../shared/types';
 import { type Plot } from '../PlotContainer';
-import { type IUniform, Color, Vector2, InstancedMesh, InstancedBufferGeometry, ShaderMaterial, PlaneGeometry, InstancedBufferAttribute, AdditiveBlending, Object3D } from 'three';
+import { type IUniform, Color, Vector2, InstancedMesh, InstancedBufferGeometry, ShaderMaterial, PlaneGeometry, InstancedBufferAttribute, NormalBlending, Object3D } from 'three';
 
 interface LinePlotUniforms {
     uTime: IUniform<number>;
@@ -38,7 +38,9 @@ export class LinePlot implements Plot<LinePlotParams> {
             presetIndex: 0,
             color: baseColor.clone(),
             lodFactor: 1.0,
-            pointSize: 2.0
+            pointSize: 2.0,
+            autoSubsampling: true,
+            autoCulling: true
         };
 
         const plane = new PlaneGeometry(1, 1);
@@ -69,10 +71,10 @@ export class LinePlot implements Plot<LinePlotParams> {
             },
             vertexShader: this.compileVertexShader(),
             fragmentShader,
-            transparent: false,
+            transparent: true,
             depthWrite: false,
             depthTest: false,
-            blending: AdditiveBlending
+            blending: NormalBlending
         });
 
         this.instancedMesh = new InstancedMesh(this.geometry, this.material, maxCount);
@@ -111,7 +113,6 @@ export class LinePlot implements Plot<LinePlotParams> {
         let funcs = "";
         let cases = "";
         
-        // Forward declarations
         customPresets.forEach((_, name) => {
             funcs += `float ${name}(float x, float t);\n`;
         });
@@ -168,11 +169,16 @@ export class LinePlot implements Plot<LinePlotParams> {
     }
 
     private calculateEffectiveCount(params: LinePlotParams, viewport?: ViewportParams): number {
+        // If subsampling is disabled, always return full count
+        if (params.autoSubsampling === false) return params.count;
+
         const ppp = 2.0;
         if (!viewport) return params.count;
         const width = params.width ?? 400;
-        const visibilityRatio = width / Math.max(viewport.maxX - viewport.minX, 0.001);
+        const viewportWidth = Math.max(viewport.maxX - viewport.minX, 0.001);
+        const visibilityRatio = width / viewportWidth;
         const totalNeeded = Math.ceil(viewport.pixelWidth * ppp * visibilityRatio);
+        
         return Math.min(params.count, totalNeeded);
     }
 

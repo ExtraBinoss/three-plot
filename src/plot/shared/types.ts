@@ -12,12 +12,14 @@ export interface BasePlotParams {
     count: number;
     frequency: number;
     amplitude: number;
-    width: number; // ADDED
+    width: number;
     presetIndex: number;
     color?: string | THREE.Color;
     lodFactor?: number;
     pointSize?: number;
     autoUpdate?: boolean;
+    autoSubsampling?: boolean;
+    autoCulling?: boolean;
     offset?: { x: number, y: number };
 }
 
@@ -29,8 +31,6 @@ export interface LinePlotParams extends BasePlotParams {
 
 export interface PointPlotParams extends BasePlotParams {
     adaptive?: boolean;
-    autoSubsampling?: boolean;
-    autoCulling?: boolean;
     pointsPerPixel?: number;
 }
 

@@ -23,7 +23,7 @@
     </div>
     
     <div class="demo-switcher-minimal" v-if="currentDemo === 'plotoy'">
-        <button @click="currentDemo = 'showcase'">Back to Showcase</button>
+        <button @click="currentDemo = 'showcase'">← Back to Showcase</button>
     </div>
   </div>
 </template>
@@ -134,25 +134,25 @@ body, html, #app, .app {
 .demo-switcher-minimal {
     position: absolute;
     bottom: 24px;
-    right: 404px;
+    left: 24px;
     z-index: 100;
 }
 
 .demo-switcher-minimal button {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #444;
-    padding: 4px 10px;
-    border-radius: 4px;
-    font-size: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #eee;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 12px;
     cursor: pointer;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+    font-weight: 600;
+    backdrop-filter: blur(10px);
 }
 
 .demo-switcher-minimal button:hover {
-    color: #888;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.2);
+    border-color: #00ccff;
 }
 
 .content {

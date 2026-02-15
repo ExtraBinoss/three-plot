@@ -1,13 +1,31 @@
 <template>
   <div class="plotoy-container">
-    <div class="canvas-side">
+    <div class="canvas-side" ref="canvasSide">
+      <!-- Pure CSS Grid -->
+      <div class="grid-background">
+        <div class="grid-minor"></div>
+        <div class="grid-major"></div>
+        <!-- Origin Axes -->
+        <div class="axis-x"></div>
+        <div class="axis-y"></div>
+      </div>
+
+      <!-- HTML Labels -->
+      <div class="html-labels">
+        <span class="label-y top">{{ params.amplitude.toFixed(1) }}</span>
+        <span class="label-y bottom">{{ (-params.amplitude).toFixed(1) }}</span>
+        <span class="label-x left">{{ (-params.width/2).toFixed(1) }}</span>
+        <span class="label-x right">{{ (params.width/2).toFixed(1) }}</span>
+        <span class="label-origin">0</span>
+      </div>
+
       <PlotView :options="plotOptions" @ready="onPlotReady" />
     </div>
     
     <div class="sidebar">
       <div class="header">
         <h1>Plotoy</h1>
-        <p>High-Performance GPU Plotter</p>
+        <p>GPU Function Plotter</p>
       </div>
       
       <div class="formula-list">
@@ -18,7 +36,7 @@
               v-model="formula.text" 
               @input="updatePlots"
               class="formula-input"
-              placeholder="Enter formula..."
+              spellcheck="false"
             />
             <button @click="toggleFormula(index)" class="toggle-btn" :class="{ active: formula.enabled }">
               {{ formula.enabled ? 'ON' : 'OFF' }}
@@ -30,25 +48,20 @@
 
       <div class="controls">
         <div class="control-row">
-          <label>Zoom X (Range)</label>
-          <input type="range" v-model.number="params.width" min="2" max="50" step="0.5" @input="syncParams" />
+          <label>Range X</label>
+          <input type="range" v-model.number="params.width" min="2" max="200" step="0.5" @input="syncParams" />
           <span>{{ params.width }}</span>
         </div>
         <div class="control-row">
-          <label>Zoom Y (Range)</label>
-          <input type="range" v-model.number="params.amplitude" min="2" max="50" step="0.5" @input="syncParams" />
+          <label>Range Y</label>
+          <input type="range" v-model.number="params.amplitude" min="2" max="200" step="0.5" @input="syncParams" />
           <span>{{ params.amplitude }}</span>
-        </div>
-        <div class="control-row">
-            <label>Points</label>
-            <input type="range" v-model.number="params.count" min="5000" max="100000" step="5000" @change="rebuildScene" />
-            <span>{{ (params.count / 1000).toFixed(0) }}k</span>
         </div>
       </div>
 
       <div class="footer">
         <p>Built-in: x, t, sin, cos, tan, floor, ceil, abs, min, max, sqrt, pow, noise, smoothstep</p>
-        <p class="hint">Scroll to zoom • Right-click to pan</p>
+        <p class="hint">Middle-click to pan • Scroll to zoom</p>
       </div>
     </div>
   </div>
@@ -57,7 +70,8 @@
 <script setup lang="ts">
 import { ref, reactive, onUnmounted } from 'vue';
 import PlotView from '../PlotView.vue';
-import { type PlotContainer, type LinePlot, type AxisPlot, type TextPlot } from '../../plot';
+import { type PlotContainer, type LinePlot } from '../../plot';
+import { OrthographicCamera } from 'three';
 
 interface Formula {
     text: string;
@@ -76,37 +90,38 @@ const formulas = ref<Formula[]>([
 ]);
 
 const plotOptions = {
-    font: { json: 'fonts/font.json', texture: 'fonts/font.png' }
+    font: { json: 'fonts/font.json', texture: 'fonts/font.png' },
+    alpha: true,
+    antialias: true
 };
 
 const params = reactive({
-  count: 50000,
-  width: 20, // More zoomed in by default
+  count: 150000, // Higher default count for smoothness
+  width: 20, 
   amplitude: 12,
-  axisColor: '#444444',
-  labelColor: '#888888',
 });
 
 let containerInstance: PlotContainer | null = null;
 let activePlots: LinePlot[] = [];
-let activeAxis: AxisPlot | null = null;
-let textLayer: TextPlot | null = null;
 
 const onPlotReady = (container: PlotContainer) => {
   containerInstance = container;
   
-  // Custom styling for Plotoy
-  container.scene.background = null; // Let CSS handle it
+  // Force high-quality transparency
+  container.renderer.setClearColor(0x000000, 0);
+  container.scene.background = null;
+
+  if (container.camera instanceof OrthographicCamera) {
+      container.camera.zoom = 25.0; 
+      container.camera.updateProjectionMatrix();
+  }
+  
   if (container.controls) {
       container.controls.enableRotate = false;
-      // Make zoom/pan more sensitive for the new scale
+      container.controls.enableDamping = false; // Direct response is better for math
   }
   
   rebuildScene();
-  
-  container.onUpdate = () => {
-    if (textLayer) textLayer.clear();
-  };
 };
 
 const toggleFormula = (index: number) => {
@@ -117,12 +132,8 @@ const toggleFormula = (index: number) => {
 };
 
 const floatify = (str: string) => {
-    // 1. Replace ^ with pow FIRST to avoid complexity
     let res = str.replace(/([a-zA-Z0-9._]+)\^([a-zA-Z0-9._]+)/g, 'pow($1, $2)');
-
-    // 2. Improved integer to float conversion
     res = res.replace(/(?<![a-zA-Z._\d])(\d+)(?![.\d])/g, '$1.0');
-    
     return res;
 };
 
@@ -130,7 +141,6 @@ const updatePlots = () => {
   if (!containerInstance) return;
 
   const injectionMap = new Map<string, string>();
-  
   formulas.value.forEach((f, i) => {
     if (f.text.trim()) {
         try {
@@ -139,7 +149,6 @@ const updatePlots = () => {
                 const reg = new RegExp(`\\bf${j+1}\\b(?!\\()`, 'g');
                 glsl = glsl.replace(reg, `f${j+1}(x,t)`);
             }
-            
             glsl = floatify(glsl);
             injectionMap.set(`f${i+1}`, glsl);
             f.error = '';
@@ -153,42 +162,34 @@ const updatePlots = () => {
 
   if (activePlots.length > 0 && activePlots[0]) {
       activePlots[0].injectPresets(injectionMap);
-      activePlots.forEach(p => {
-          p.injectPresets(injectionMap);
-      });
+      activePlots.forEach(p => p.injectPresets(injectionMap));
   }
 
   activePlots.forEach((plot, i) => {
       const f = formulas.value[i];
       if (f) {
-          if (f.enabled) {
-              plot.preset(i + 8);
-              plot.mesh.visible = true;
-          } else {
-              plot.mesh.visible = false;
-          }
+          plot.preset(i + 8);
+          plot.mesh.visible = f.enabled;
       }
   });
 };
 
 const rebuildScene = () => {
   if (!containerInstance) return;
-  
   containerInstance.clear();
-  textLayer = containerInstance.text(2000);
   activePlots = [];
-
-  // Setup Axis with smaller scale grid
-  activeAxis = containerInstance.axis(params.axisColor)
-                .ticks(1.0, 5) // Grid every 1.0 unit, sub-ticks every 0.2
-                .thickness(1.0);
-                
-  activeAxis.labels(textLayer, 0.05, params.labelColor)
-            .precision(1);
 
   formulas.value.forEach((f) => {
     const p = containerInstance!.line(params.count, f.color);
-    p.setParams({ pointSize: 2.5 }); // Thicker lines for better visibility
+    
+    // DISABLE ENGINE OPTIMIZATIONS THAT CAUSE FLICKER AT HIGH ZOOM
+    p.setParams({ 
+        pointSize: 2.0,
+        autoCulling: false,      // Prevent lines from disappearing when partially offscreen
+        autoSubsampling: false, // Keep all points for maximum precision
+        lodFactor: 2.0          // High quality line segments
+    });
+    
     activePlots.push(p);
   });
 
@@ -204,17 +205,9 @@ const syncParams = () => {
         autoUpdate: true,
     });
   });
-  
-  if (activeAxis) {
-      const halfW = params.width * 0.5;
-      activeAxis.rangeX(-halfW, halfW)
-                .rangeY(-params.amplitude, params.amplitude);
-  }
 };
 
-onUnmounted(() => {
-    // Clean up
-});
+onUnmounted(() => {});
 </script>
 
 <style scoped>
@@ -222,7 +215,7 @@ onUnmounted(() => {
   display: flex;
   width: 100%;
   height: 100vh;
-  background: #080808;
+  background: #000;
   color: #eee;
   font-family: 'Outfit', sans-serif;
 }
@@ -231,26 +224,97 @@ onUnmounted(() => {
   flex: 1;
   position: relative;
   overflow: hidden;
-  background: radial-gradient(circle at center, #111 0%, #050505 100%);
+  background: #000;
 }
 
+/* --- CSS GRID SYSTEM --- */
+.grid-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.grid-minor {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 10px 10px;
+}
+
+.grid-major {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 50px 50px;
+}
+
+.axis-x {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.axis-y {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* --- HTML LABELS --- */
+.html-labels {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 5;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: #444;
+}
+
+.label-y { position: absolute; left: calc(50% + 5px); }
+.label-y.top { top: 10px; }
+.label-y.bottom { bottom: 10px; }
+
+.label-x { position: absolute; top: calc(50% + 5px); }
+.label-x.left { left: 10px; }
+.label-x.right { right: 10px; }
+
+.label-origin { position: absolute; top: calc(50% + 5px); left: calc(50% + 5px); }
+
+/* --- SIDEBAR --- */
 .sidebar {
   width: 380px;
-  background: #121212;
-  border-left: 1px solid #222;
+  background: #0a0a0a;
+  border-left: 1px solid #1a1a1a;
   display: flex;
   flex-direction: column;
   padding: 24px;
-  overflow-y: auto;
-  box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+  z-index: 20;
 }
 
 .header h1 {
   margin: 0;
-  font-size: 2rem;
+  font-size: 1.8rem;
   font-weight: 700;
   letter-spacing: -0.05em;
-  background: linear-gradient(135deg, #fff 0%, #888 100%);
+  background: linear-gradient(135deg, #fff 0%, #444 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -258,146 +322,88 @@ onUnmounted(() => {
 
 .header p {
   margin: 4px 0 24px 0;
-  font-size: 0.8rem;
-  color: #555;
+  font-size: 0.7rem;
+  color: #333;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
 }
 
 .formula-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 24px;
+  gap: 10px;
 }
 
 .formula-item {
-  background: #1a1a1a;
-  border-left: 4px solid transparent;
-  padding: 12px;
-  border-radius: 8px;
-  transition: transform 0.2s;
-  border: 1px solid #222;
-}
-
-.formula-item:hover {
-  transform: translateX(4px);
-  background: #202020;
-}
-
-.formula-meta {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  background: #0d0d0d;
+  border-left: 3px solid transparent;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid #151515;
 }
 
 .formula-name {
   font-family: 'JetBrains Mono', monospace;
-  font-weight: bold;
-  font-size: 0.9rem;
-  white-space: nowrap;
+  font-size: 0.8rem;
 }
 
 .formula-input {
   flex: 1;
   background: transparent;
   border: none;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid #222;
   color: #fff;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.95rem;
-  padding: 6px 0;
+  font-size: 0.85rem;
+  padding: 4px 0;
 }
 
 .formula-input:focus {
   outline: none;
-  border-bottom-color: #00ccff;
+  border-bottom-color: #333;
 }
 
 .toggle-btn {
-  background: #222;
-  border: 1px solid #333;
-  color: #666;
-  font-size: 0.7rem;
-  font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 6px;
+  background: #111;
+  border: 1px solid #222;
+  color: #333;
+  font-size: 0.6rem;
+  padding: 2px 6px;
+  border-radius: 4px;
   cursor: pointer;
-  transition: all 0.2s;
 }
 
 .toggle-btn.active {
-  background: #333;
-  color: #fff;
-  border-color: #444;
+  color: #888;
 }
 
 .error-msg {
-  color: #ff4444;
-  font-size: 0.75rem;
+  color: #cc4444;
+  font-size: 0.7rem;
   margin-top: 6px;
-  font-family: 'JetBrains Mono', monospace;
 }
 
 .controls {
   margin-top: auto;
-  background: #1a1a1a;
-  padding: 20px;
-  border-radius: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  border: 1px solid #222;
+  background: #0d0d0d;
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid #151515;
 }
 
 .control-row {
   display: flex;
   align-items: center;
-  gap: 15px;
-  font-size: 0.8rem;
-}
-
-.control-row label {
-  flex: 1.5;
-  color: #888;
-  font-weight: 600;
-}
-
-.control-row input[type="range"] {
-  flex: 2;
-  accent-color: #00ccff;
-}
-
-.control-row span {
-  width: 40px;
-  text-align: right;
-  font-family: 'JetBrains Mono', monospace;
-  color: #00ccff;
-}
-
-.footer {
-  margin-top: 24px;
+  gap: 12px;
   font-size: 0.75rem;
-  color: #444;
-  line-height: 1.6;
+  margin-bottom: 8px;
 }
 
-.hint {
-  color: #666;
-  font-style: italic;
-  margin-top: 8px;
-}
+.control-row label { flex: 1.5; color: #444; }
+.control-row input { flex: 2; accent-color: #333; }
+.control-row span { width: 40px; color: #555; font-family: monospace; text-align: right; }
 
-::-webkit-scrollbar {
-  width: 6px;
-}
+.footer { margin-top: 20px; font-size: 0.65rem; color: #222; }
 
-::-webkit-scrollbar-track {
-  background: #121212;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #333;
-  border-radius: 3px;
-}
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-thumb { background: #222; }
 </style>
