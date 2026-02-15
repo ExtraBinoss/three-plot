@@ -21,7 +21,7 @@ import * as THREE from 'three';
 const presets = ['sine', 'saw', 'zigzag', 'ramp'];
 
 const params = reactive({
-  count: 100000, 
+  count: 300000, 
   preset: 'sine',
   presetIndex: 0,
   frequency: 0.1,
@@ -30,7 +30,11 @@ const params = reactive({
   adaptive: true,
   lodFactor: 1.0,
   color: '#00ff88',
-  autoUpdate: true
+  autoUpdate: true,
+  autoSubsampling: true,
+  autoCulling: true,
+  pointsPerPixel: 2.0,
+  actualPoints: 0
 });
 
 let plotContainer: PlotContainer | null = null;
@@ -43,6 +47,26 @@ let frames = 0;
 const onPlotReady = (container: PlotContainer) => {
   plotContainer = container;
   initPlot();
+  
+  // Set the update callback to sync with the renderer's loop
+  plotContainer.onUpdate = (time) => {
+    frames++;
+    if (time >= lastTime + 1000) {
+      fps.value = Math.round((frames * 1000) / (time - lastTime));
+      lastTime = time;
+      frames = 0;
+    }
+
+    if (fastPlot && plotContainer) {
+      const viewport = plotContainer.getViewportStats();
+      const elapsed = params.autoUpdate ? time / 1000 : 0;
+      fastPlot.update(elapsed, params, viewport);
+      
+      // Update actual points drawn info
+      const drawRange = (fastPlot.mesh.geometry as THREE.BufferGeometry).drawRange;
+      params.actualPoints = drawRange.count;
+    }
+  };
 };
 
 const initPlot = () => {
@@ -52,21 +76,31 @@ const initPlot = () => {
     plotContainer.scene.remove(fastPlot.mesh);
   }
   
-  fastPlot = new FastPlot(1000000, new THREE.Color(params.color));
+  // High allocation for the webgl buffer, but we only draw what's needed
+  fastPlot = new FastPlot(2000000, new THREE.Color(params.color));
   plotContainer.scene.add(fastPlot.mesh);
 };
 
 const setupGui = () => {
   const gui = new GUI();
-  gui.add(params, 'count', 100, 1000000, 100).name('Point Count');
-  gui.add(params, 'preset', presets).name('Preset').onChange((val: string) => {
+  
+  const folderData = gui.addFolder('Data & Performance');
+  folderData.add(params, 'count', 100, 2000000, 100).name('Total Data Points');
+  folderData.add(params, 'autoSubsampling').name('Smart Subsampling');
+  folderData.add(params, 'autoCulling').name('Frustum Culling');
+  folderData.add(params, 'pointsPerPixel', 0.5, 10, 0.5).name('Density (pts/px)');
+  folderData.add(params, 'actualPoints').name('Points Rendered').disable();
+
+  const folderPlot = gui.addFolder('Plot Settings');
+  folderPlot.add(params, 'preset', presets).name('Preset').onChange((val: string) => {
     params.presetIndex = presets.indexOf(val);
   });
-  gui.add(params, 'frequency', 0.01, 2, 0.01).name('Frequency');
-  gui.add(params, 'amplitude', 1, 100, 1).name('Amplitude');
-  gui.add(params, 'pointSize', 0.1, 10, 0.1).name('Base Point Size');
-  gui.add(params, 'adaptive').name('Adaptive Size');
-  gui.add(params, 'lodFactor', 0.01, 1.0, 0.01).name('GPU LOD Factor');
+  folderPlot.add(params, 'frequency', 0.01, 2, 0.01).name('Frequency');
+  folderPlot.add(params, 'amplitude', 1, 100, 1).name('Amplitude');
+  folderPlot.add(params, 'pointSize', 0.1, 10, 0.1).name('Base Point Size');
+  folderPlot.add(params, 'adaptive').name('Adaptive Size');
+  folderPlot.add(params, 'lodFactor', 0.01, 1.0, 0.01).name('GPU LOD Factor (Tail Clipping)');
+  
   gui.addColor(params, 'color').name('Color').onChange((val: string) => {
     const material = fastPlot?.mesh?.material as THREE.ShaderMaterial | undefined;
     if (material && material.uniforms?.uColor) {
@@ -76,27 +110,8 @@ const setupGui = () => {
   gui.add(params, 'autoUpdate').name('Auto Update');
 };
 
-const animate = () => {
-  requestAnimationFrame(animate);
-  
-  const time = performance.now();
-  frames++;
-
-  if (time >= lastTime + 1000) {
-    fps.value = Math.round((frames * 1000) / (time - lastTime));
-    lastTime = time;
-    frames = 0;
-  }
-
-  if (fastPlot) {
-      const elapsed = params.autoUpdate ? time / 1000 : 0;
-      fastPlot.update(elapsed, params);
-  }
-};
-
 onMounted(() => {
   setupGui();
-  animate();
 });
 </script>
 

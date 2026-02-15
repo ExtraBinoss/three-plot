@@ -45,6 +45,7 @@ export class FastPlot {
             fragmentShader,
             transparent: true,
             depthWrite: false,
+            depthTest: false,
             blending: THREE.AdditiveBlending
         });
 
@@ -62,6 +63,13 @@ export class FastPlot {
         count: number;
         adaptive?: boolean;
         lodFactor?: number;
+        autoSubsampling?: boolean;
+        autoCulling?: boolean;
+        pointsPerPixel?: number;
+    }, viewport?: {
+        pixelWidth: number;
+        minX: number;
+        maxX: number;
     }) {
         const u = this.material.uniforms as unknown as FastPlotUniforms;
         if (!u) return;
@@ -74,22 +82,60 @@ export class FastPlot {
         if (u.uPreset.value !== presetVal) u.uPreset.value = presetVal;
 
         const isAdaptive = params.adaptive ?? true;
-        u.uAdaptive.value = isAdaptive ? 1.0 : 0.0;
+        const adaptiveVal = isAdaptive ? 1.0 : 0.0;
+        if (u.uAdaptive.value !== adaptiveVal) u.uAdaptive.value = adaptiveVal;
         
         const lod = params.lodFactor ?? 1.0;
         if (u.uLodFactor.value !== lod) u.uLodFactor.value = lod;
 
+        // Data Reduction Logic
+        let effectiveCount = params.count;
+        const useSmartSub = params.autoSubsampling ?? true;
+        const useSmartCull = params.autoCulling ?? true;
+        const ppp = params.pointsPerPixel || 2.0;
+
+        if (useSmartSub && viewport) {
+            // Cap the count to roughly 2-3 points per pixel for the whole dataset range
+            // This is "subsampling" the mathematical function.
+            const maxNeeded = Math.ceil(viewport.pixelWidth * ppp);
+            effectiveCount = Math.min(params.count, maxNeeded);
+        }
+
+        let drawStart = 0;
+        let drawCount = effectiveCount;
+
+        if (useSmartCull && viewport) {
+            // Range is -200 to 200 (Total 400)
+            const plotWidth = 400.0;
+            const plotMin = -200.0;
+
+            const startPct = (viewport.minX - plotMin) / plotWidth;
+            const endPct = (viewport.maxX - plotMin) / plotWidth;
+
+            const startIndex = Math.max(0, Math.floor(startPct * (effectiveCount - 1)));
+            const endIndex = Math.min(effectiveCount - 1, Math.ceil(endPct * (effectiveCount - 1)));
+
+            if (startIndex < effectiveCount && endIndex >= 0) {
+                drawStart = startIndex;
+                drawCount = Math.max(1, endIndex - startIndex + 1);
+            } else {
+                drawCount = 0; // Completely off-screen
+            }
+        }
+
         let pSize = params.pointSize || 5.0;
         if (isAdaptive) {
-            // formula: uPointSize = Math.max(1.0, baseSize * Math.sqrt(100_000 / count))
-            pSize = Math.max(0.5, pSize * Math.sqrt(100000 / params.count));
+            // Use effectiveCount for size calculation to keep consistent look
+            pSize = Math.max(0.5, pSize * Math.sqrt(100000 / effectiveCount));
         }
         if (u.uPointSize.value !== pSize) u.uPointSize.value = pSize;
         
-        if (u.uCount.value !== params.count) {
-             u.uCount.value = Number(params.count);
-             this.geometry.setDrawRange(0, params.count);
+        if (u.uCount.value !== effectiveCount) {
+             u.uCount.value = Number(effectiveCount);
         }
+        
+        // Geometry draw range controls what is actually sent to GPU
+        this.geometry.setDrawRange(drawStart, drawCount);
     }
 
     public get mesh() {

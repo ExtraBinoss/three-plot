@@ -9,6 +9,7 @@ export class PlotContainer {
     private container: HTMLElement;
     private animationId: number | null = null;
     private resizeObserver: ResizeObserver;
+    public onUpdate?: (time: number) => void;
 
     constructor(container: HTMLElement) {
         this.container = container;
@@ -29,12 +30,12 @@ export class PlotContainer {
         this.camera.position.set(0, 0, 500);
 
         this.renderer = new THREE.WebGLRenderer({ 
-            antialias: true, 
+            antialias: false, 
             alpha: false, 
             preserveDrawingBuffer: false, 
             powerPreference: 'high-performance' 
         });
-        this.renderer.setPixelRatio(window.devicePixelRatio);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.setSize(width, height);
         container.appendChild(this.renderer.domElement);
 
@@ -73,8 +74,37 @@ export class PlotContainer {
         this.renderer.setSize(width, height);
     }
 
+    public getViewportStats() {
+        const width = this.container.clientWidth;
+        const height = this.container.clientHeight;
+        
+        // In OrthographicCamera, the visible world units depend on left/right/top/bottom and zoom
+        const zoom = this.camera.zoom;
+        const visibleWidthWorld = (this.camera.right - this.camera.left) / zoom;
+        const visibleHeightWorld = (this.camera.top - this.camera.bottom) / zoom;
+        
+        const minX = this.camera.position.x + (this.camera.left / zoom);
+        const maxX = this.camera.position.x + (this.camera.right / zoom);
+        
+        return {
+            pixelWidth: width,
+            pixelHeight: height,
+            visibleWidthWorld,
+            visibleHeightWorld,
+            minX,
+            maxX,
+            zoom
+        };
+    }
+
     private animate() {
         this.animationId = requestAnimationFrame(() => this.animate());
+        
+        const time = performance.now();
+        if (this.onUpdate) {
+            this.onUpdate(time);
+        }
+
         this.controls.update();
         this.renderer.render(this.scene, this.camera);
     }
