@@ -102,13 +102,13 @@ const initPlot = () => {
   const color = new THREE.Color(params.color);
   
   if (params.mode === 'Points') {
-    currentPlot = new FastPlot(3000, color);
+    currentPlot = new FastPlot(2000000, color);
   } else if (params.mode === 'Instanced') {
     currentPlot = new InstancedPlot(2000000, color);
   } else if (params.mode === 'Lines') {
     // For Lines (Line2), the CPU->GPU transfer is more expensive.
     // We cap it to a reasonable count if it's too high for stable 60fps.
-    const safeCount = Math.min(params.count, 100000);
+    const safeCount = Math.min(params.count, 2000000);
     currentPlot = new LinePlot(safeCount, color);
   }
   
