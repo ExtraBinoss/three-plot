@@ -49,6 +49,12 @@ const params = reactive({
   dashScale: 0.0
 });
 
+const smoothedParams = reactive({ ...params });
+
+const lerp = (current: number, target: number, speed: number) => {
+  return current + (target - current) * speed;
+};
+
 let plotContainer: PlotContainer | null = null;
 let currentPlot: FastPlot | InstancedPlot | LinePlot | null = null;
 const stats = ref(true);
@@ -73,9 +79,23 @@ const onPlotReady = (container: PlotContainer) => {
     }
 
     if (currentPlot && plotContainer) {
+      // Smooth out visual parameters
+      const speed = 0.15; // Adjustment speed (0-1)
+      smoothedParams.frequency = lerp(smoothedParams.frequency, params.frequency, speed);
+      smoothedParams.amplitude = lerp(smoothedParams.amplitude, params.amplitude, speed);
+      smoothedParams.pointSize = lerp(smoothedParams.pointSize, params.pointSize, speed);
+      smoothedParams.lodFactor = lerp(smoothedParams.lodFactor, params.lodFactor, speed);
+      smoothedParams.borderWidth = lerp(smoothedParams.borderWidth, params.borderWidth, speed);
+      smoothedParams.dashScale = lerp(smoothedParams.dashScale, params.dashScale, speed);
+      smoothedParams.pointsPerPixel = lerp(smoothedParams.pointsPerPixel, params.pointsPerPixel, speed);
+      smoothedParams.presetIndex = lerp(smoothedParams.presetIndex, params.presetIndex, speed);
+      
+      // We keep count strictly as target to avoid buffer issues, but visual ones are smoothed
+      smoothedParams.count = params.count;
+
       const viewport = plotContainer.getViewportStats();
       const elapsed = params.autoUpdate ? time / 1000 : 0;
-      currentPlot.update(elapsed, params, viewport);
+      currentPlot.update(elapsed, smoothedParams as any, viewport);
       
       // Update actual points drawn info
       const mesh = currentPlot.mesh;
