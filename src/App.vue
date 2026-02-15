@@ -1,6 +1,6 @@
 <template>
   <div class="app">
-    <div class="header">
+    <div class="header" v-if="currentDemo !== 'plotoy'">
       <div class="logo">ThreePlot <span class="version">v1.2.0</span></div>
       <div class="tagline">GPU-Accelerated Data Visualization</div>
       
@@ -19,6 +19,11 @@
     <div class="content">
       <ShowcaseDemo v-if="currentDemo === 'showcase'" />
       <RGBDemo v-else-if="currentDemo === 'rgb'" />
+      <PlotoyDemo v-else-if="currentDemo === 'plotoy'" />
+    </div>
+    
+    <div class="demo-switcher-minimal" v-if="currentDemo === 'plotoy'">
+        <button @click="currentDemo = 'showcase'">Back to Showcase</button>
     </div>
   </div>
 </template>
@@ -27,9 +32,11 @@
 import { ref } from 'vue';
 import ShowcaseDemo from './components/demos/ShowcaseDemo.vue';
 import RGBDemo from './components/demos/RGBDemo.vue';
+import PlotoyDemo from './components/demos/PlotoyDemo.vue';
 
-const currentDemo = ref('showcase');
+const currentDemo = ref('plotoy');
 const demos = [
+  { id: 'plotoy', name: 'Plotoy' },
   { id: 'showcase', name: 'Showcase' },
   { id: 'rgb', name: 'RGB Channels' }
 ];
@@ -122,6 +129,30 @@ body, html, #app, .app {
   border-color: #00ccff;
   color: #000;
   font-weight: 700;
+}
+
+.demo-switcher-minimal {
+    position: absolute;
+    bottom: 24px;
+    right: 404px;
+    z-index: 100;
+}
+
+.demo-switcher-minimal button {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #444;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 10px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.demo-switcher-minimal button:hover {
+    color: #888;
+    background: rgba(255, 255, 255, 0.1);
 }
 
 .content {

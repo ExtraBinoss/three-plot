@@ -44,6 +44,9 @@ float noise3D(in vec3 x) {
                    mix(hash3(i + vec3(0,1,1)), hash3(i + vec3(1,1,1)), f.x), f.y), f.z);
 }
 
+// Injection point for custom functions
+#define CUSTOM_FUNCTIONS
+
 vec4 getPlotPos(float index) {
     // Horizontal range from -width/2 to +width/2
     float halfW = uPlotWidth * 0.5;

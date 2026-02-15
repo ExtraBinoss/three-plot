@@ -26,7 +26,8 @@ export class LinePlot implements Plot<LinePlotParams> {
     private geometry: InstancedBufferGeometry;
     private material: ShaderMaterial;
     private params: LinePlotParams;
-    private static customInjection: string = "";
+    private static customFunctions: string = "";
+    private static customCases: string = "else { y = 0.0; }";
 
     constructor(maxCount: number, baseColor: Color = new Color(0x00ff88)) {
         this.params = {
@@ -49,12 +50,6 @@ export class LinePlot implements Plot<LinePlotParams> {
         for (let i = 0; i < maxCount; i++) instanceIndices[i] = i;
         this.geometry.setAttribute('instanceIndex', new InstancedBufferAttribute(instanceIndices, 1));
 
-        const regex = /else\s*{\s*y\s*=\s*0\.0;\s*}/g;
-        const finalVertex = vertexShader.replace(
-            regex,
-            LinePlot.customInjection || "else { y = 0.0; }"
-        );
-
         this.material = new ShaderMaterial({
             uniforms: {
                 uTime: { value: 0 },
@@ -72,7 +67,7 @@ export class LinePlot implements Plot<LinePlotParams> {
                 uDashScale: { value: 0.0 },
                 uOffset: { value: new Vector2(0, 0) }
             },
-            vertexShader: finalVertex,
+            vertexShader: this.compileVertexShader(),
             fragmentShader,
             transparent: false,
             depthWrite: false,
@@ -88,6 +83,18 @@ export class LinePlot implements Plot<LinePlotParams> {
         for (let i = 0; i < maxCount; i++) this.instancedMesh.setMatrixAt(i, dummy.matrix);
     }
 
+    private compileVertexShader(): string {
+        let v = vertexShader.replace(
+            "#define CUSTOM_FUNCTIONS",
+            LinePlot.customFunctions || ""
+        );
+        v = v.replace(
+            /else\s*{\s*y\s*=\s*0\.0;\s*}/g,
+            LinePlot.customCases || "else { y = 0.0; }"
+        );
+        return v;
+    }
+
     public setParams(params: Partial<LinePlotParams>): this {
         this.params = { ...this.params, ...params };
         return this;
@@ -101,20 +108,27 @@ export class LinePlot implements Plot<LinePlotParams> {
     public preset(index: number) { return this.setParams({ presetIndex: index }); }
 
     public injectPresets(customPresets: Map<string, string>) {
-        let customGlsl = "";
+        let funcs = "";
+        let cases = "";
+        
+        // Forward declarations
+        customPresets.forEach((_, name) => {
+            funcs += `float ${name}(float x, float t);\n`;
+        });
+        funcs += "\n";
+
         let index = 8;
         customPresets.forEach((glsl, name) => {
-            customGlsl += `else if (preset == ${index}) { // ${name}\n y = ${glsl};\n }\n`;
+            funcs += `float ${name}(float x, float t) { return ${glsl}; }\n`;
+            cases += `else if (preset == ${index}) { y = ${name}(x, uTime); }\n`;
             index++;
         });
-        customGlsl += "else { y = 0.0; }";
+        cases += "else { y = 0.0; }";
 
-        LinePlot.customInjection = customGlsl;
+        LinePlot.customFunctions = funcs;
+        LinePlot.customCases = cases;
 
-        // Use regex to match the else block even with different whitespace
-        const regex = /else\s*{\s*y\s*=\s*0\.0;\s*}/g;
-        const newVertex = vertexShader.replace(regex, customGlsl);
-
+        const newVertex = this.compileVertexShader();
         if (this.material.vertexShader !== newVertex) {
             this.material.vertexShader = newVertex;
             this.material.needsUpdate = true;
