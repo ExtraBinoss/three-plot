@@ -44,7 +44,9 @@ const params = reactive({
   autoCulling: true,
   showAxis: true,
   showLabels: true,
-  axisThickness: 1.5,
+  axisColor: '#ffffff',
+  axisThickness: 0.5,
+  labelColor: '#888888',
   adaptive: false
 });
 
@@ -94,9 +96,9 @@ const rebuildScene = async () => {
 
   // 1. Setup Axis
   if (params.showAxis) {
-      activeAxis = containerInstance.axis('#ffffff').ticks(50, 8);
+      activeAxis = containerInstance.axis(params.axisColor).ticks(50, 8);
       if (params.showLabels) {
-          activeAxis.labels(textLayer, 0.07, '#888');
+          activeAxis.labels(textLayer, 0.07, params.labelColor);
       }
   } else {
       activeAxis = null;
@@ -132,13 +134,21 @@ const syncParams = () => {
       const halfW = params.width * 0.5;
       activeAxis.rangeX(-halfW, halfW)
                 .rangeY(-params.amplitude * 1.2, params.amplitude * 1.2)
-                .thickness(params.axisThickness);
+                .thickness(params.axisThickness)
+                .color(params.axisColor);
   }
 };
 
 watch(params, (newVal, oldVal) => {
     // If structural params change, rebuild
-    if (newVal.mode !== oldVal.mode || newVal.count !== oldVal.count || newVal.showAxis !== oldVal.showAxis || newVal.showLabels !== oldVal.showLabels) {
+    if (
+        newVal.mode !== oldVal.mode || 
+        newVal.count !== oldVal.count || 
+        newVal.showAxis !== oldVal.showAxis || 
+        newVal.showLabels !== oldVal.showLabels ||
+        newVal.axisColor !== oldVal.axisColor ||
+        newVal.labelColor !== oldVal.labelColor
+    ) {
         rebuildScene();
     } else {
         syncParams();
@@ -148,23 +158,32 @@ watch(params, (newVal, oldVal) => {
 const setupGui = () => {
   gui = new GUI();
   
-  gui.add(params, 'mode', ['Points', 'Lines']).name('Engine');
+  const folderEngine = gui.addFolder('Engine');
+  folderEngine.add(params, 'mode', ['Points', 'Lines']).name('Type');
+  folderEngine.add(params, 'autoUpdate').name('Animate');
+  folderEngine.add(params, 'autoSubsampling').name('Subsampling');
+  folderEngine.add(params, 'autoCulling').name('Culling');
 
   const folderData = gui.addFolder('Data & Geometry');
+  folderData.add(params, 'preset', presets).name('Signal Preset').onChange((val: string) => {
+    params.presetIndex = presets.indexOf(val);
+  });
   folderData.add(params, 'count', 100, 1000000, 100).name('Point Count');
   folderData.add(params, 'width', 100, 2000, 10).name('Plot Width (X)');
   folderData.add(params, 'amplitude', 1, 200, 1).name('Amplitude (Y)');
   folderData.add(params, 'frequency', 0.01, 0.5, 0.01);
   
-  const folderVisuals = gui.addFolder('Visuals');
-  folderVisuals.add(params, 'showAxis').name('Show Axis');
-  folderVisuals.add(params, 'showLabels').name('Show Labels');
-  folderVisuals.add(params, 'axisThickness', 0.1, 10, 0.1).name('Axis Thickness');
-  folderVisuals.add(params, 'pointSize', 0.1, 10, 0.1).name('Size');
-  folderVisuals.add(params, 'adaptive').name('Adaptive Size');
-  folderVisuals.addColor(params, 'color').name('Color');
-  
-  gui.add(params, 'autoUpdate').name('Animate');
+  const folderPlot = gui.addFolder('Plot Style');
+  folderPlot.addColor(params, 'color').name('Main Color');
+  folderPlot.add(params, 'pointSize', 0.1, 10, 0.1).name('Point Size');
+  folderPlot.add(params, 'adaptive').name('Adaptive Size');
+
+  const folderAxis = gui.addFolder('Axis & Labels');
+  folderAxis.add(params, 'showAxis').name('Show Axis');
+  folderAxis.add(params, 'showLabels').name('Show Labels');
+  folderAxis.addColor(params, 'axisColor').name('Axis Color');
+  folderAxis.add(params, 'axisThickness', 0.1, 10, 0.1).name('Axis Thickness');
+  folderAxis.addColor(params, 'labelColor').name('Label Color');
 };
 
 onMounted(setupGui);
