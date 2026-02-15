@@ -11,6 +11,7 @@ uniform float uFrequency;
 uniform float uAmplitude;
 uniform float uPreset;
 uniform float uLodFactor;
+uniform vec2 uOffset;
 
 varying float vVanish;
 varying float vSide; // -0.5 to 0.5
@@ -38,7 +39,10 @@ vec4 getPlotPos(float index) {
         y = (sin(t) * cos(t * 1.1 + uTime) * sin(t * 0.5 - uTime * 0.5)) * uAmplitude * 2.0;
     }
     
-    return vec4(x, y, 0.0, 1.0);
+    float finalX = x + uOffset.x;
+    float finalY = y + uOffset.y;
+    
+    return vec4(finalX, finalY, 0.0, 1.0);
 }
 
 void main() {

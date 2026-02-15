@@ -1,25 +1,12 @@
 <template>
   <div class="rgb-demo">
-    <div class="channel red">
-      <div class="channel-info">
-        <div class="label">RED CHANNEL</div>
-        <div class="val">{{ redFreq.toFixed(2) }}Hz</div>
+    <div class="plot-wrapper">
+      <div class="channel-labels">
+        <div class="channel-tag red">RED CHANNEL</div>
+        <div class="channel-tag green">GREEN CHANNEL</div>
+        <div class="channel-tag blue">BLUE CHANNEL</div>
       </div>
-      <PlotView @ready="(c) => onPlotReady(c, 'red')" />
-    </div>
-    <div class="channel green">
-      <div class="channel-info">
-        <div class="label">GREEN CHANNEL</div>
-        <div class="val">{{ greenFreq.toFixed(2) }}Hz</div>
-      </div>
-      <PlotView @ready="(c) => onPlotReady(c, 'green')" />
-    </div>
-    <div class="channel blue">
-      <div class="channel-info">
-        <div class="label">BLUE CHANNEL</div>
-        <div class="val">{{ blueFreq.toFixed(2) }}Hz</div>
-      </div>
-      <PlotView @ready="(c) => onPlotReady(c, 'blue')" />
+      <PlotView @ready="onPlotReady" />
     </div>
     
     <div class="controls-overlay">
@@ -27,82 +14,91 @@
         <label>Animation Speed</label>
         <input type="range" v-model.number="speed" min="0" max="2" step="0.1" />
       </div>
+      <div class="control-group">
+        <label>Vertical Spread</label>
+        <input type="range" v-model.number="spread" min="20" max="150" step="1" />
+      </div>
     </div>
 
     <div class="global-stats">
+      <div class="stat-pill">Single Canvas / Triple Plot</div>
       <div class="stat-pill">Total GPU Points: <b>{{ (pointCount * 3).toLocaleString() }}</b></div>
-      <div class="stat-pill">Sync: <b>Active</b></div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue';
+import { ref, onUnmounted } from 'vue';
 import PlotView from '../PlotView.vue';
 import { PlotContainer, LinePlot } from '../../plot';
 import * as THREE from 'three';
 
-const pointCount = 10000;
+const pointCount = 1000;
 const speed = ref(1.0);
-const redFreq = ref(0.05);
-const greenFreq = ref(0.08);
-const blueFreq = ref(0.12);
+const spread = ref(80);
 
-const channels = {
-  red: { container: null as PlotContainer | null, plot: null as LinePlot | null, color: '#ff4466' },
-  green: { container: null as PlotContainer | null, plot: null as LinePlot | null, color: '#44ff88' },
-  blue: { container: null as PlotContainer | null, plot: null as LinePlot | null, color: '#44aaff' }
-};
+// Plain variables to avoid Vue Proxy interference with Three.js
+let containerInstance: PlotContainer | null = null;
+const plots: { red?: LinePlot, green?: LinePlot, blue?: LinePlot } = {};
 
-const onPlotReady = (container: PlotContainer, key: 'red' | 'green' | 'blue') => {
-  const channel = channels[key];
-  channel.container = container;
+const onPlotReady = (container: PlotContainer) => {
+  containerInstance = container;
   
-  // Custom camera setup for this demo
-  container.camera.zoom = 1.2;
+  container.camera.zoom = 1.0;
   container.camera.updateProjectionMatrix();
   
-  const color = new THREE.Color(channel.color);
-  channel.plot = new LinePlot(pointCount, color);
-  container.scene.add(channel.plot.mesh);
+  // Initialize multiple plots in the SAME scene
+  plots.red = new LinePlot(pointCount, new THREE.Color('#ff4466'));
+  plots.green = new LinePlot(pointCount, new THREE.Color('#44ff88'));
+  plots.blue = new LinePlot(pointCount, new THREE.Color('#44aaff'));
+  
+  container.scene.add(plots.red.mesh);
+  container.scene.add(plots.green.mesh);
+  container.scene.add(plots.blue.mesh);
   
   container.onUpdate = (time) => {
-    if (channel.plot && channel.container) {
-      const viewport = channel.container.getViewportStats();
-      const freq = key === 'red' ? redFreq.value : (key === 'green' ? greenFreq.value : blueFreq.value);
-      
-      const params = {
-        count: pointCount,
-        presetIndex: key === 'red' ? 4 : (key === 'green' ? 0 : 5),
-        frequency: freq,
-        amplitude: 70,
-        pointSize: 1.5,
-        adaptive: true,
-        lodFactor: 1.0,
-        color: channel.color,
-        autoUpdate: true,
-        autoSubsampling: false,
-        autoCulling: true,
-        pointsPerPixel: 2.0,
-        borderColor: channel.color,
-        borderWidth: 0.1,
-        dashScale: 0.0
-      };
-      
-      channel.plot.update((time * speed.value) / 1000, params as any, viewport);
+    if (!containerInstance) return;
+    
+    const viewport = containerInstance.getViewportStats();
+    const t = (time * speed.value) / 1000;
+    const s = spread.value;
+
+    const baseParams = {
+      count: pointCount,
+      frequency: 0.05,
+      amplitude: 50,
+      pointSize: 2.0,
+      adaptive: true,
+      lodFactor: 1.0,
+      autoUpdate: true,
+      autoSubsampling: false,
+      autoCulling: true,
+      pointsPerPixel: 2.0,
+      borderWidth: 0.1,
+      dashScale: 0.0
+    };
+
+    if (plots.red) {
+      plots.red.update(t, { ...baseParams, presetIndex: 4, color: '#ff4466', borderColor: '#ff4466', offset: { x: 0, y: s } } as any, viewport);
+    }
+    if (plots.green) {
+      plots.green.update(t, { ...baseParams, presetIndex: 0, color: '#44ff88', borderColor: '#44ff88', offset: { x: 0, y: 0 } } as any, viewport);
+    }
+    if (plots.blue) {
+      plots.blue.update(t, { ...baseParams, presetIndex: 5, color: '#44aaff', borderColor: '#44aaff', offset: { x: 0, y: -s } } as any, viewport);
     }
   };
 };
 
 onUnmounted(() => {
-  // Cleanup resources
-  Object.values(channels).forEach(channel => {
-    if (channel.plot) {
-      channel.plot.mesh.geometry.dispose();
-      if (Array.isArray(channel.plot.mesh.material)) {
-        channel.plot.mesh.material.forEach(m => m.dispose());
+  // Manual cleanup of GPU resources
+  Object.values(plots).forEach(plot => {
+    if (plot) {
+      plot.mesh.geometry.dispose();
+      if (Array.isArray(plot.mesh.material)) {
+        plot.mesh.material.forEach(m => m.dispose());
       } else {
-        channel.plot.mesh.material.dispose();
+        plot.mesh.material.dispose();
       }
     }
   });
@@ -115,49 +111,38 @@ onUnmounted(() => {
   flex-direction: column;
   width: 100%;
   height: 100%;
-  gap: 4px;
   background: #000;
-  padding: 4px;
   box-sizing: border-box;
 }
 
-.channel {
+.plot-wrapper {
   flex: 1;
   position: relative;
-  background: #050505;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.03);
 }
 
-.channel-info {
+.channel-labels {
   position: absolute;
-  top: 15px;
-  left: 20px;
-  z-index: 5;
+  top: 0;
+  left: 30px;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  justify-content: center;
+  gap: 60px;
   pointer-events: none;
+  z-index: 5;
 }
 
-.label {
-  font-family: 'Outfit', sans-serif;
-  font-weight: 700;
-  font-size: 10px;
-  letter-spacing: 0.2em;
-  opacity: 0.8;
-}
-
-.val {
+.channel-tag {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 9px;
-  color: #666;
+  font-size: 10px;
+  letter-spacing: 2px;
+  font-weight: 700;
 }
 
-.red .label { color: #ff4466; text-shadow: 0 0 10px rgba(255, 68, 102, 0.3); }
-.green .label { color: #44ff88; text-shadow: 0 0 10px rgba(68, 255, 136, 0.3); }
-.blue .label { color: #44aaff; text-shadow: 0 0 10px rgba(68, 170, 255, 0.3); }
+.red { color: #ff4466; text-shadow: 0 0 10px rgba(255, 68, 102, 0.5); }
+.green { color: #44ff88; text-shadow: 0 0 10px rgba(68, 255, 136, 0.5); }
+.blue { color: #44aaff; text-shadow: 0 0 10px rgba(68, 170, 255, 0.5); }
 
 .controls-overlay {
   position: absolute;
@@ -170,6 +155,9 @@ onUnmounted(() => {
   border: 1px solid rgba(255, 255, 255, 0.1);
   z-index: 100;
   pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
 }
 
 .control-group {

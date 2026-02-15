@@ -16,6 +16,7 @@ interface LinePlotUniforms {
     uOutlineColor: THREE.IUniform<THREE.Color>;
     uOutlineWidth: THREE.IUniform<number>;
     uDashScale: THREE.IUniform<number>;
+    uOffset: THREE.IUniform<THREE.Vector2>;
 }
 
 export class LinePlot {
@@ -51,7 +52,8 @@ export class LinePlot {
                 uLineWidth: { value: 2.0 },
                 uOutlineColor: { value: new THREE.Color(0x000000) },
                 uOutlineWidth: { value: 0.0 },
-                uDashScale: { value: 0.0 }
+                uDashScale: { value: 0.0 },
+                uOffset: { value: new THREE.Vector2(0, 0) }
             },
             vertexShader,
             fragmentShader,
@@ -95,6 +97,12 @@ export class LinePlot {
         }
         this.updateUniform(u.uOutlineWidth, params.borderWidth ?? 0.0);
         this.updateUniform(u.uDashScale, params.dashScale ?? 0.0);
+
+        if (params.offset) {
+            u.uOffset.value.set(params.offset.x, params.offset.y);
+        } else {
+            u.uOffset.value.set(0, 0);
+        }
 
         const effectiveCount = this.calculateEffectiveCount(params, viewport);
         this.updateUniform(u.uCount, effectiveCount);

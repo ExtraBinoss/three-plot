@@ -23,6 +23,7 @@ export interface PlotUpdateParams {
     borderColor?: string | THREE.Color;
     borderWidth?: number;
     dashScale?: number;
+    offset?: { x: number, y: number };
     mode?: string;
     autoUpdate?: boolean;
 }
