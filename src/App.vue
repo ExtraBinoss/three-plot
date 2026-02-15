@@ -21,7 +21,7 @@ import * as THREE from 'three';
 const presets = ['sine', 'saw', 'zigzag', 'ramp'];
 
 const params = reactive({
-  count: 1000000, 
+  count: 100000, 
   preset: 'sine',
   presetIndex: 0,
   frequency: 0.1,
