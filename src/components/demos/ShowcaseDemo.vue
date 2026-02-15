@@ -143,7 +143,8 @@ const syncParams = () => {
                 .rangeY(-params.amplitude * 1.2, params.amplitude * 1.2)
                 .color(params.axisColor)
                 .thickness(params.axisThickness)
-                .subTicks(params.subTicks);
+                .subTicks(params.subTicks)
+                .displayLabels(params.showLabels);
       
       if (params.showLabels && textLayer) {
           activeAxis.labels(textLayer, 0.07, params.labelColor)
@@ -153,30 +154,31 @@ const syncParams = () => {
 };
 
 watch(
-  () => [params.mode, params.count, params.showAxis, params.showLabels],
+  () => ({ mode: params.mode, count: params.count, showAxis: params.showAxis }),
   () => {
     rebuildScene();
   }
 );
 
 watch(
-  () => [
-    params.frequency, 
-    params.amplitude, 
-    params.width, 
-    params.pointSize, 
-    params.color, 
-    params.autoUpdate, 
-    params.autoSubsampling, 
-    params.autoCulling, 
-    params.adaptive,
-    params.axisColor,
-    params.axisThickness,
-    params.subTicks,
-    params.labelColor,
-    params.labelPrecision,
-    params.presetIndex
-  ],
+  () => ({
+    frequency: params.frequency, 
+    amplitude: params.amplitude, 
+    width: params.width, 
+    pointSize: params.pointSize, 
+    color: params.color, 
+    autoUpdate: params.autoUpdate, 
+    autoSubsampling: params.autoSubsampling, 
+    autoCulling: params.autoCulling, 
+    adaptive: params.adaptive,
+    axisColor: params.axisColor,
+    axisThickness: params.axisThickness,
+    subTicks: params.subTicks,
+    labelColor: params.labelColor,
+    labelPrecision: params.labelPrecision,
+    presetIndex: params.presetIndex,
+    showLabels: params.showLabels
+  }),
   () => {
     syncParams();
   }
@@ -207,7 +209,7 @@ const setupGui = () => {
 
   const folderAxis = gui.addFolder('Axis & Labels');
   folderAxis.add(params, 'showAxis').name('Show Axis').onChange(() => rebuildScene());
-  folderAxis.add(params, 'showLabels').name('Show Labels').onChange(() => rebuildScene());
+  folderAxis.add(params, 'showLabels').name('Show Labels');
   folderAxis.addColor(params, 'axisColor').name('Axis Color');
   folderAxis.add(params, 'axisThickness', 0.1, 10, 0.1).name('Axis Thickness');
   folderAxis.add(params, 'subTicks', 0, 10, 1).name('Sub Ticks');

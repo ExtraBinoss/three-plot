@@ -105,6 +105,10 @@ export class AxisPlot implements Plot<AxisPlotParams> {
         return this.setParams({ showLabels: true, labelSize: size, labelColor: color });
     }
 
+    public displayLabels(val: boolean) {
+        return this.setParams({ showLabels: val });
+    }
+
     public update(_time: number, viewport: any) {
         const u = this.material.uniforms as unknown as AxisPlotUniforms;
         if (!u) return;
