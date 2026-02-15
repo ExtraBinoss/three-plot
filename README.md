@@ -19,13 +19,13 @@ ThreePlot is designed for real-time visualization of massive datasets (millions 
 ### Installation
 
 ```bash
-npm install three-plot
+npm install @extrabinoss/three-plot
 ```
 
 ### Basic Example (Fluent API)
 
 ```typescript
-import { ThreePlot } from 'three-plot';
+import { ThreePlot } from '@extrabinoss/three-plot';
 
 const container = ThreePlot.init(document.getElementById('plot-container'));
 

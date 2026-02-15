@@ -1,5 +1,5 @@
 {
-  "name": "three-plot",
+  "name": "@extrabinoss/three-plot",
   "version": "1.0.1",
   "type": "module",
   "description": "High-performance Three.js plotting library using GPU instancing and shaders",
