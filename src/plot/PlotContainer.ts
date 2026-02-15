@@ -1,15 +1,16 @@
+import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { LinePlot } from './line/LinePlot';
 import { PointPlot } from './point/PointPlot';
 import { AxisPlot } from './axis/AxisPlot';
 import { LegendPlot } from './axis/LegendPlot';
 import { TextPlot } from './msdf/TextPlot';
-import { WebGLRenderer, Scene, OrthographicCamera, Object3D, Color, MOUSE } from 'three';
 
 export interface PlotContainerOptions {
-    renderer?: WebGLRenderer;
-    scene?: Scene;
-    camera?: OrthographicCamera;
+    renderer?: THREE.WebGLRenderer;
+    scene?: THREE.Scene;
+    camera?: THREE.Camera;
+    controls?: boolean; 
     autoRender?: boolean;
     antialias?: boolean;
     alpha?: boolean;
@@ -24,20 +25,20 @@ export interface Plot<T = any> {
     dispose(): void;
     getDrawStats(): { total: number, visible: number };
     setParams(params: Partial<T>): this;
-    mesh: Object3D;
+    mesh: THREE.Object3D;
 }
 
 export type PlotType = 'line' | 'point' | 'axis' | 'text' | 'legend';
 
 export class PlotContainer {
-    public scene: Scene;
-    public camera: OrthographicCamera;
-    public renderer: WebGLRenderer;
-    public controls: OrbitControls;
+    public scene: THREE.Scene;
+    public camera: THREE.Camera;
+    public renderer: THREE.WebGLRenderer;
+    public controls?: OrbitControls;
     
     private container: HTMLElement;
     private animationId: number | null = null;
-    private resizeObserver: ResizeObserver;
+    private resizeObserver?: ResizeObserver;
     private isExternalRenderer: boolean = false;
     private autoRender: boolean = true;
     
@@ -53,9 +54,9 @@ export class PlotContainer {
         this.autoRender = options.autoRender !== false;
         this.fontConfig = options.font;
         
-        this.scene = options.scene || new Scene();
-        if (!options.scene) {
-            this.scene.background = new Color(0x0a0a0a);
+        this.scene = options.scene || new THREE.Scene();
+        if (!options.scene && !this.scene.background) {
+            this.scene.background = new THREE.Color(0x0a0a0a);
         }
 
         const width = this.container.clientWidth;
@@ -63,13 +64,16 @@ export class PlotContainer {
         const aspect = width / height;
         const viewSize = 250; 
 
-        this.camera = options.camera || new OrthographicCamera(
-            -viewSize * aspect, viewSize * aspect,
-            viewSize, -viewSize,
-            0.1, 2000
-        );
-        if (!options.camera) {
-            this.camera.position.set(0, 0, 500);
+        if (options.camera) {
+            this.camera = options.camera;
+        } else {
+            const cam = new THREE.OrthographicCamera(
+                -viewSize * aspect, viewSize * aspect,
+                viewSize, -viewSize,
+                0.1, 2000
+            );
+            cam.position.set(0, 0, 500);
+            this.camera = cam;
         }
 
         if (options.renderer) {
@@ -77,50 +81,42 @@ export class PlotContainer {
             this.isExternalRenderer = true;
         } else {
             try {
-                this.renderer = new WebGLRenderer({ 
+                this.renderer = new THREE.WebGLRenderer({ 
                     antialias: options.antialias ?? false, 
-                    alpha: options.alpha ?? false, 
-                    powerPreference: 'high-performance',
-                    failIfMajorPerformanceCaveat: false // Plus permissif pour les vieux drivers
+                    alpha: options.alpha ?? false,
                 });
-            } catch (e) {
-                console.error("ThreePlot: Failed to create WebGL context", e);
-                // Création d'un renderer vide/dummy ou throw une erreur claire
-                throw new Error("WebGL not supported or context creation failed");
-            }
-            
-            if (this.renderer) {
                 this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
                 this.renderer.setSize(width, height);
                 this.container.appendChild(this.renderer.domElement);
+            } catch (e) {
+                console.error("ThreePlot: Failed to create WebGL context", e);
+                throw new Error("WebGL not supported or context creation failed");
             }
         }
 
-        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-        this.controls.enableDamping = true;
-        this.controls.enableRotate = false;
-        this.controls.mouseButtons = {
-            LEFT: MOUSE.PAN,
-            MIDDLE: MOUSE.DOLLY,
-            RIGHT: MOUSE.ROTATE
-        };
+        if (options.controls !== false) {
+            this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+            this.controls.enableDamping = true;
+            this.controls.enableRotate = false;
+            this.controls.mouseButtons = {
+                LEFT: THREE.MOUSE.PAN,
+                MIDDLE: THREE.MOUSE.DOLLY,
+                RIGHT: THREE.MOUSE.ROTATE
+            };
+        }
         
-        this.resizeObserver = new ResizeObserver(() => this.onResize());
-        this.resizeObserver.observe(this.container);
+        if (!this.isExternalRenderer) {
+            this.resizeObserver = new ResizeObserver(() => this.onResize());
+            this.resizeObserver.observe(this.container);
+        }
 
         if (this.autoRender) {
             this.animate();
         }
     }
 
-    /**
-     * Registers a custom signal preset that can be used by Line and Point plots.
-     * @param name The name of the preset
-     * @param glsl The GLSL function body that returns a float. Available variables: t (time+freq), x (world pos).
-     */
     public registerPreset(name: string, glsl: string) {
         this.customPresets.set(name, glsl);
-        // Notify all plots that they might need to update their shaders
         this.plots.forEach(p => {
             if ((p as any).injectPresets) {
                 (p as any).injectPresets(this.customPresets);
@@ -129,19 +125,18 @@ export class PlotContainer {
         return this;
     }
 
-    public add<T extends Plot>(type: PlotType, countOrColor: any, color?: string | Color): T {
+    public add<T extends Plot>(type: PlotType, countOrColor: any, color?: string | THREE.Color): T {
         let plot: any;
         
         if (type === 'line') {
-            plot = new LinePlot(countOrColor, new Color(color || '#00ff88'));
+            plot = new LinePlot(countOrColor, new THREE.Color(color || '#00ff88'));
         } else if (type === 'point') {
-            plot = new PointPlot(countOrColor, new Color(color || '#00ff88'));
+            plot = new PointPlot(countOrColor, new THREE.Color(color || '#00ff88'));
         } else if (type === 'axis') {
             plot = new AxisPlot(countOrColor || '#ffffff');
         } else if (type === 'legend') {
             plot = new LegendPlot();
         } else if (type === 'text') {
-            // Lower default capacity: starting at 100 is enough with auto-grow
             plot = new TextPlot(countOrColor || 100);
             if (this.fontConfig && this.fontConfig.json && this.fontConfig.texture) {
                 plot.load(this.fontConfig.json, this.fontConfig.texture);
@@ -160,9 +155,9 @@ export class PlotContainer {
         return plot as T;
     }
 
-    public line(count: number, color?: string | Color) { return this.add<LinePlot>('line', count, color); }
-    public point(count: number, color?: string | Color) { return this.add<PointPlot>('point', count, color); }
-    public axis(color?: string | Color) { return this.add<AxisPlot>('axis', color); }
+    public line(count: number, color?: string | THREE.Color) { return this.add<LinePlot>('line', count, color); }
+    public point(count: number, color?: string | THREE.Color) { return this.add<PointPlot>('point', count, color); }
+    public axis(color?: string | THREE.Color) { return this.add<AxisPlot>('axis', color); }
     public legend() { return this.add<LegendPlot>('legend', null); }
     public text(capacity?: number) { return this.add<TextPlot>('text', capacity); }
 
@@ -187,20 +182,42 @@ export class PlotContainer {
         const height = this.container.clientHeight;
         const aspect = width / height;
         const viewSize = 250;
-        this.camera.left = -viewSize * aspect;
-        this.camera.right = viewSize * aspect;
-        this.camera.top = viewSize;
-        this.camera.bottom = -viewSize;
-        this.camera.updateProjectionMatrix();
+
+        if (this.camera instanceof THREE.OrthographicCamera) {
+            this.camera.left = -viewSize * aspect;
+            this.camera.right = viewSize * aspect;
+            this.camera.top = viewSize;
+            this.camera.bottom = -viewSize;
+            this.camera.updateProjectionMatrix();
+        } else if (this.camera instanceof THREE.PerspectiveCamera) {
+            this.camera.aspect = aspect;
+            this.camera.updateProjectionMatrix();
+        }
+
         this.renderer.setSize(width, height);
     }
 
     public getViewportStats() {
         const width = this.container.clientWidth;
         const height = this.container.clientHeight;
-        const zoom = this.camera.zoom;
-        const minX = this.camera.position.x + (this.camera.left / zoom);
-        const maxX = this.camera.position.x + (this.camera.right / zoom);
+        
+        let minX = -100, maxX = 100, zoom = 1;
+
+        if (this.camera instanceof THREE.OrthographicCamera) {
+            zoom = this.camera.zoom;
+            minX = this.camera.position.x + (this.camera.left / zoom);
+            maxX = this.camera.position.x + (this.camera.right / zoom);
+        } else if (this.camera instanceof THREE.PerspectiveCamera) {
+            // Basic approximation for perspective
+            const distance = this.camera.position.z;
+            const vFov = (this.camera.fov * Math.PI) / 180;
+            const visibleHeight = 2 * Math.tan(vFov / 2) * distance;
+            const visibleWidth = visibleHeight * (width / height);
+            minX = this.camera.position.x - visibleWidth / 2;
+            maxX = this.camera.position.x + visibleWidth / 2;
+            zoom = 1.0; 
+        }
+
         return { pixelWidth: width, pixelHeight: height, minX, maxX, zoom };
     }
 
@@ -221,7 +238,7 @@ export class PlotContainer {
         this.plots.forEach(plot => plot.update(time / 1000, viewport));
         this.textPlots.forEach(tp => tp.update(time / 1000, viewport));
         
-        this.controls.update();
+        if (this.controls) this.controls.update();
         this.renderer.render(this.scene, this.camera);
     }
 
@@ -233,12 +250,12 @@ export class PlotContainer {
 
     public destroy() {
         if (this.animationId !== null) cancelAnimationFrame(this.animationId);
-        this.resizeObserver.disconnect();
+        if (this.resizeObserver) this.resizeObserver.disconnect();
         this.clear();
         if (!this.isExternalRenderer) {
             this.renderer.dispose();
             this.renderer.domElement.remove();
         }
-        this.controls.dispose();
+        if (this.controls) this.controls.dispose();
     }
 }
