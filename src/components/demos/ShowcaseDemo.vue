@@ -90,7 +90,7 @@ const onPlotReady = (container: PlotContainer) => {
   };
 };
 
-const rebuildScene = async () => {
+const rebuildScene = () => {
   if (!containerInstance) return;
   
   containerInstance.clear();
@@ -152,20 +152,35 @@ const syncParams = () => {
   }
 };
 
-watch(params, (newVal, oldVal) => {
-    // Structural changes that require clear() and new objects
-    if (
-        newVal.mode !== oldVal.mode || 
-        newVal.count !== oldVal.count || 
-        newVal.showAxis !== oldVal.showAxis || 
-        newVal.showLabels !== oldVal.showLabels
-    ) {
-        rebuildScene();
-    } else {
-        // Visual/Numerical changes applied to existing objects
-        syncParams();
-    }
-}, { deep: true });
+watch(
+  () => [params.mode, params.count, params.showAxis, params.showLabels],
+  () => {
+    rebuildScene();
+  }
+);
+
+watch(
+  () => [
+    params.frequency, 
+    params.amplitude, 
+    params.width, 
+    params.pointSize, 
+    params.color, 
+    params.autoUpdate, 
+    params.autoSubsampling, 
+    params.autoCulling, 
+    params.adaptive,
+    params.axisColor,
+    params.axisThickness,
+    params.subTicks,
+    params.labelColor,
+    params.labelPrecision,
+    params.presetIndex
+  ],
+  () => {
+    syncParams();
+  }
+);
 
 const setupGui = () => {
   gui = new GUI();
@@ -191,8 +206,8 @@ const setupGui = () => {
   folderPlot.add(params, 'adaptive').name('Adaptive Size');
 
   const folderAxis = gui.addFolder('Axis & Labels');
-  folderAxis.add(params, 'showAxis').name('Show Axis');
-  folderAxis.add(params, 'showLabels').name('Show Labels');
+  folderAxis.add(params, 'showAxis').name('Show Axis').onChange(() => rebuildScene());
+  folderAxis.add(params, 'showLabels').name('Show Labels').onChange(() => rebuildScene());
   folderAxis.addColor(params, 'axisColor').name('Axis Color');
   folderAxis.add(params, 'axisThickness', 0.1, 10, 0.1).name('Axis Thickness');
   folderAxis.add(params, 'subTicks', 0, 10, 1).name('Sub Ticks');
