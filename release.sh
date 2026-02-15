@@ -17,7 +17,7 @@ fi
 
 # Get current version
 CURRENT_VERSION=$(node -p "require('./package.json').version")
-echo "📦 Current version: $CURRENT_VERSION"
+echo "📦 Current version is: $CURRENT_VERSION"
 
 # Ask for new version
 echo "🔢 Enter new version (e.g., 1.0.1):"
