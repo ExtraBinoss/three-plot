@@ -1,6 +1,5 @@
 precision highp float;
 
-// Custom index per instance
 attribute float instanceIndex;
 
 uniform vec2 uResolution;
@@ -14,8 +13,8 @@ uniform float uLodFactor;
 uniform vec2 uOffset;
 
 varying float vVanish;
-varying float vSide; // -0.5 to 0.5
-varying float vProgress; // 0 to 1
+varying float vSide; 
+varying float vProgress; 
 varying float vSegmentIndex;
 
 #define PI 3.14159265359
@@ -30,19 +29,14 @@ vec4 getPlotPos(float index) {
     else if (preset == 2) y = (abs(fract(t / (2.0 * PI)) * 2.0 - 1.0) * 2.0 - 1.0) * uAmplitude;
     else if (preset == 3) y = (step(0.5, fract(t / (2.0 * PI))) * 2.0 - 1.0) * uAmplitude;
     else if (preset == 4) {
-        // Showcase: Harmonic Interference
         y = (sin(t) + sin(t * 2.1) * 0.5 + sin(t * 0.5) * 1.5) * uAmplitude * 0.5;
         y += cos(t * 0.2) * uAmplitude * 0.3;
     }
     else if (preset == 5) {
-        // Showcase: Chaos / Noise
         y = (sin(t) * cos(t * 1.1 + uTime) * sin(t * 0.5 - uTime * 0.5)) * uAmplitude * 2.0;
     }
     
-    float finalX = x + uOffset.x;
-    float finalY = y + uOffset.y;
-    
-    return vec4(finalX, finalY, 0.0, 1.0);
+    return vec4(x + uOffset.x, y + uOffset.y, 0.0, 1.0);
 }
 
 void main() {
@@ -56,7 +50,6 @@ void main() {
     }
 
     mat4 mvp = projectionMatrix * modelViewMatrix;
-    
     vec4 worldP0 = getPlotPos(instanceIndex);
     vec4 worldP1 = getPlotPos(instanceIndex + 1.0);
     
@@ -69,18 +62,20 @@ void main() {
     vec2 dir = normalize(screenP1 - screenP0);
     vec2 normal = vec2(-dir.y, dir.x);
     
-    // We can also compute miter here if we want perfectly smooth joints in screen space,
-    // but the key is that uLineWidth is now purely screen pixels.
+    // Logic: the line should not be wider than its own amplitude in screen space
+    // Let's calculate the height of the plot in pixels roughly
+    vec4 clipAmp = mvp * vec4(0.0, uAmplitude, 0.0, 0.0);
+    float ampPixels = length((clipAmp.xy / clipAmp.w) * uResolution * 0.5);
+    
+    // Clamp the line width to never exceed 20% of the signal's amplitude on screen
+    float effectiveLineWidth = min(uLineWidth, max(ampPixels * 0.2, 0.5));
     
     float t = position.x + 0.5;
     vProgress = t;
     vSegmentIndex = instanceIndex;
     
     vec2 currentScreen = mix(screenP0, screenP1, t);
+    currentScreen += normal * position.y * effectiveLineWidth * 2.0;
     
-    // Offset in screen space
-    currentScreen += normal * position.y * uLineWidth * 2.0;
-    
-    // Back to clip space
     gl_Position = vec4((currentScreen / uResolution * 2.0 - 1.0), 0.0, 1.0);
 }

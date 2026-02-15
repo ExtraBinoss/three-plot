@@ -16,7 +16,7 @@
       </div>
       <div class="control-group">
         <label>Vertical Spread</label>
-        <input type="range" v-model.number="spread" min="20" max="150" step="1" />
+        <input type="range" v-model.number="spread" min="20" max="350" step="1" />
       </div>
     </div>
 
@@ -36,7 +36,7 @@ import { type PlotContainer, type LinePlot, type AxisPlot, type TextPlot } from 
 
 const pointCount = 1000;
 const speed = ref(1.0);
-const spread = ref(80);
+const spread = ref(150);
 const textStats = reactive({ total: 0, visible: 0 });
 
 const plotOptions = {
