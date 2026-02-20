@@ -4,6 +4,7 @@ import { PointPlot } from './point/PointPlot';
 import { AxisPlot } from './axis/AxisPlot';
 import { LegendPlot } from './axis/LegendPlot';
 import { TextPlot } from './msdf/TextPlot';
+import { SurfacePlot } from './surface/SurfacePlot';
 import { WebGLRenderer, Scene, Camera, Object3D, Color, OrthographicCamera, MOUSE, PerspectiveCamera } from 'three';
 
 export interface PlotContainerOptions {
@@ -28,7 +29,7 @@ export interface Plot<T = any> {
     mesh: Object3D;
 }
 
-export type PlotType = 'line' | 'point' | 'axis' | 'text' | 'legend';
+export type PlotType = 'line' | 'point' | 'axis' | 'text' | 'legend' | 'surface';
 
 export class PlotContainer {
     public scene: Scene;
@@ -142,6 +143,9 @@ export class PlotContainer {
                 plot.load(this.fontConfig.json, this.fontConfig.texture);
             }
             this.textPlots.add(plot);
+        } else if (type === 'surface') {
+            const segments = countOrColor || 100;
+            plot = new SurfacePlot(new Color(color || '#00ff88'), segments, segments);
         }
 
         if (type !== 'text') {
@@ -157,6 +161,7 @@ export class PlotContainer {
 
     public line(count: number, color?: string | Color) { return this.add<LinePlot>('line', count, color); }
     public point(count: number, color?: string | Color) { return this.add<PointPlot>('point', count, color); }
+    public surface(segments: number, color?: string | Color) { return this.add<SurfacePlot>('surface', segments, color); }
     public axis(color?: string | Color) { return this.add<AxisPlot>('axis', color); }
     public legend() { return this.add<LegendPlot>('legend', null); }
     public text(capacity?: number) { return this.add<TextPlot>('text', capacity); }

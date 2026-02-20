@@ -20,6 +20,7 @@
       <ShowcaseDemo v-if="currentDemo === 'showcase'" />
       <RGBDemo v-else-if="currentDemo === 'rgb'" />
       <PlotoyDemo v-else-if="currentDemo === 'plotoy'" />
+      <SurfaceDemo v-else-if="currentDemo === 'surface'" />
     </div>
     
     <div class="demo-switcher-minimal" v-if="currentDemo === 'plotoy'">
@@ -33,12 +34,14 @@ import { ref } from 'vue';
 import ShowcaseDemo from './components/demos/ShowcaseDemo.vue';
 import RGBDemo from './components/demos/RGBDemo.vue';
 import PlotoyDemo from './components/demos/PlotoyDemo.vue';
+import SurfaceDemo from './components/demos/SurfaceDemo.vue';
 
 const currentDemo = ref('plotoy');
 const demos = [
   { id: 'plotoy', name: 'Plotoy' },
   { id: 'showcase', name: 'Showcase' },
-  { id: 'rgb', name: 'RGB Channels' }
+  { id: 'rgb', name: 'RGB Channels' },
+  { id: 'surface', name: '3D Surface' }
 ];
 </script>
 

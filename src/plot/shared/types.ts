@@ -36,5 +36,13 @@ export interface PointPlotParams extends BasePlotParams {
     pointsPerPixel?: number;
 }
 
+export interface SurfacePlotParams extends BasePlotParams {
+    depth?: number;
+    segmentsX?: number;
+    segmentsY?: number;
+    wireframe?: boolean;
+    colormap?: (string | THREE.Color)[];
+}
+
 // Unified type for internal updates
-export type PlotUpdateParams = LinePlotParams & PointPlotParams;
+export type PlotUpdateParams = LinePlotParams & PointPlotParams & SurfacePlotParams;
