@@ -10,6 +10,7 @@ varying float vVanish;
 varying float vSide; // -0.5 to 0.5
 varying float vProgress; // 0 to 1
 varying float vSegmentIndex;
+varying float vLineWidth;
 
 void main() {
     if (vVanish > 0.5) discard;
@@ -25,8 +26,8 @@ void main() {
     float dist = abs(vSide) * 2.0; // 0 to 1
     
     // blur width in "normalized distance" units
-    // 1 pixel = 1.5 / uLineWidth in these units
-    float blur = 1.5 / max(uLineWidth, 1.0);
+    // 1 pixel = 1.5 / vLineWidth in these units
+    float blur = 1.5 / max(vLineWidth, 1.0);
     
     // Calculate outline
     // Inner width is (1.0 - uOutlineWidth)

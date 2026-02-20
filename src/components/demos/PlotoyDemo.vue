@@ -57,6 +57,20 @@
           <input type="range" v-model.number="params.amplitude" min="2" max="200" step="0.5" @input="syncParams" />
           <span>{{ params.amplitude }}</span>
         </div>
+        <div class="control-row">
+          <label>Thickness</label>
+          <input type="range" v-model.number="params.thickness" min="0.5" max="15" step="0.5" @input="syncParams" />
+          <span>{{ params.thickness.toFixed(1) }}</span>
+        </div>
+        <div class="control-row">
+          <label>Fill Area</label>
+          <input type="checkbox" v-model="params.fillEnabled" @change="syncParams" />
+        </div>
+        <div class="control-row" v-if="params.fillEnabled">
+          <label>Fill Opacity</label>
+          <input type="range" v-model.number="params.fillOpacity" min="0.0" max="1.0" step="0.05" @input="syncParams" />
+          <span>{{ params.fillOpacity.toFixed(2) }}</span>
+        </div>
       </div>
 
       <div class="footer">
@@ -101,9 +115,12 @@ const plotOptions = {
 };
 
 const params = reactive({
-  count: 150000, // Higher default count for smoothness
+  count: 200000, // Higher default count for smoothness
   width: 20, 
   amplitude: 12,
+  thickness: 1.5,
+  fillEnabled: true,
+  fillOpacity: 0.1,
 });
 
 let containerInstance: PlotContainer | null = null;
@@ -184,16 +201,24 @@ const rebuildScene = () => {
   containerInstance.clear();
   activePlots = [];
 
-  formulas.value.forEach((f) => {
+  formulas.value.forEach((f, i) => {
     const p = containerInstance!.line(params.count, f.color);
     
-    // DISABLE ENGINE OPTIMIZATIONS THAT CAUSE FLICKER AT HIGH ZOOM
+    // Set renderOrder to ensure stable drawing order
+    p.mesh.renderOrder = i;
+    p.mesh.position.z = 0;
+    
+    // DISABLE autoSubsampling to prevent shimmering/flickering during movement
     p.setParams({ 
-        pointSize: 2.0,
-        autoCulling: false,      // Prevent lines from disappearing when partially offscreen
-        autoSubsampling: false, // Keep all points for maximum precision
-        lodFactor: 2.0          // High quality line segments
+        autoCulling: true,       
+        autoSubsampling: false, // STABLE
+        lodFactor: 1.0          
     });
+
+    p.thickness(params.thickness);
+
+    // Initial fill state
+    p.fill(f.color, params.fillEnabled ? params.fillOpacity : 0.0);
     
     activePlots.push(p);
   });
@@ -203,12 +228,17 @@ const rebuildScene = () => {
 };
 
 const syncParams = () => {
-  activePlots.forEach(plot => {
+  activePlots.forEach((plot, i) => {
+    const f = formulas.value[i];
     plot.setParams({
         width: params.width,
         amplitude: params.amplitude,
+        pointSize: params.thickness,
         autoUpdate: true,
     });
+    if (f) {
+      plot.fill(f.color, params.fillEnabled ? params.fillOpacity : 0.0);
+    }
   });
 };
 

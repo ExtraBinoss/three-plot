@@ -3,21 +3,16 @@ precision highp float;
 attribute float instanceIndex;
 
 uniform vec2 uResolution;
-uniform float uLineWidth;
 uniform float uTime;
 uniform float uCount;
 uniform float uFrequency;
 uniform float uAmplitude;
-uniform float uPlotWidth; // NEW
+uniform float uPlotWidth;
 uniform float uPreset;
 uniform float uLodFactor;
 uniform vec2 uOffset;
 
 varying float vVanish;
-varying float vSide; 
-varying float vProgress; 
-varying float vSegmentIndex;
-varying float vLineWidth;
 
 #define PI 3.14159265359
 
@@ -45,11 +40,9 @@ float noise3D(in vec3 x) {
                    mix(hash3(i + vec3(0,1,1)), hash3(i + vec3(1,1,1)), f.x), f.y), f.z);
 }
 
-// Injection point for custom functions
 #define CUSTOM_FUNCTIONS
 
 vec4 getPlotPos(float index) {
-    // Horizontal range from -width/2 to +width/2
     float halfW = uPlotWidth * 0.5;
     float x = (index / max(uCount - 1.0, 1.0)) * uPlotWidth - halfW;
     
@@ -71,11 +64,9 @@ vec4 getPlotPos(float index) {
         y = (noise(t) * 2.0 - 1.0) * uAmplitude;
     }
     else if (preset == 7) {
-        // Multiplication de la fréquence par 0.5 pour avoir plus de détails spatiaux
         y = (noise3D(vec3(x * uFrequency * 0.5, 0.0, uTime * 0.5)) * 2.0 - 1.0) * uAmplitude;
     }
     else {
-        // This part will be replaced by custom signal logic
         y = 0.0;
     }
     
@@ -84,7 +75,6 @@ vec4 getPlotPos(float index) {
 
 void main() {
     vVanish = 0.0;
-    vSide = position.y;
 
     if (instanceIndex >= uCount - 1.0 || instanceIndex > uCount * uLodFactor) {
         vVanish = 1.0;
@@ -96,26 +86,16 @@ void main() {
     vec4 worldP0 = getPlotPos(instanceIndex);
     vec4 worldP1 = getPlotPos(instanceIndex + 1.0);
     
-    vec4 clipP0 = mvp * worldP0;
-    vec4 clipP1 = mvp * worldP1;
-    
-    vec2 screenP0 = (clipP0.xy / clipP0.w + 1.0) * 0.5 * uResolution;
-    vec2 screenP1 = (clipP1.xy / clipP1.w + 1.0) * 0.5 * uResolution;
-    
-    vec2 dir = normalize(screenP1 - screenP0);
-    vec2 normal = vec2(-dir.y, dir.x);
-    
-    vec4 clipAmp = mvp * vec4(0.0, uAmplitude, 0.0, 0.0);
-    float ampPixels = length((clipAmp.xy / clipAmp.w) * uResolution * 0.5);
-    float effectiveLineWidth = max(uLineWidth, 0.5);
-    
+    // Position.x goes from -0.5 to 0.5. Map to 0 to 1.
     float t = position.x + 0.5;
-    vProgress = t;
-    vSegmentIndex = instanceIndex;
-    vLineWidth = effectiveLineWidth;
+    vec4 worldTop = mix(worldP0, worldP1, t);
     
-    vec2 currentScreen = mix(screenP0, screenP1, t);
-    currentScreen += normal * position.y * effectiveLineWidth * 2.0;
+    // Bottom at y=uOffset.y
+    vec4 worldBottom = vec4(worldTop.x, uOffset.y, 0.0, 1.0);
     
-    gl_Position = vec4((currentScreen / uResolution * 2.0 - 1.0), 0.0, 1.0);
+    // Position.y goes from -0.5 to 0.5. Map to 0 to 1 (bottom to top).
+    float ty = position.y + 0.5;
+    vec4 finalWorld = mix(worldBottom, worldTop, ty);
+    
+    gl_Position = mvp * finalWorld;
 }

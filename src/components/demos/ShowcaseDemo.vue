@@ -44,6 +44,8 @@ const params = reactive({
   pointSize: 2.0,
   mode: 'Lines' as 'Points' | 'Lines',
   color: '#00ccff',
+  fillEnabled: true,
+  fillOpacity: 0.1,
   autoUpdate: true,
   autoSubsampling: true,
   autoCulling: true,
@@ -154,7 +156,9 @@ const rebuildScene = () => {
 
   // 2. Setup Plot
   if (params.mode === 'Lines') {
-    activePlot = containerInstance.line(params.count, params.color);
+    const p = containerInstance.line(params.count, params.color);
+    p.fill(params.color, params.fillEnabled ? params.fillOpacity : 0.0);
+    activePlot = p;
   } else {
     activePlot = containerInstance.point(params.count, params.color);
   }
@@ -176,6 +180,10 @@ const syncParams = () => {
         autoCulling: params.autoCulling,
         adaptive: params.adaptive
     });
+
+    if (params.mode === 'Lines' && (activePlot as any).fill) {
+        (activePlot as LinePlot).fill(params.color, params.fillEnabled ? params.fillOpacity : 0.0);
+    }
   }
   
   if (activeAxis) {
@@ -218,6 +226,8 @@ watch(
     width: params.width, 
     pointSize: params.pointSize, 
     color: params.color, 
+    fillEnabled: params.fillEnabled,
+    fillOpacity: params.fillOpacity,
     autoUpdate: params.autoUpdate, 
     autoSubsampling: params.autoSubsampling, 
     autoCulling: params.autoCulling, 
@@ -263,8 +273,10 @@ const setupGui = () => {
   
   const folderPlot = gui.addFolder('Plot Style');
   folderPlot.addColor(params, 'color').name('Main Color');
-  folderPlot.add(params, 'pointSize', 0.1, 10, 0.1).name('Point Size');
-  folderPlot.add(params, 'adaptive').name('Adaptive Size');
+  folderPlot.add(params, 'pointSize', 0.1, 10, 0.1).name('Point Size / Thickness');
+  folderPlot.add(params, 'fillEnabled').name('Fill Area (Lines)');
+  folderPlot.add(params, 'fillOpacity', 0.0, 1.0, 0.05).name('Fill Opacity');
+  folderPlot.add(params, 'adaptive').name('Adaptive Size (Points)');
 
   const folderAxis = gui.addFolder('Axis & Labels');
   folderAxis.add(params, 'showAxis').name('Show Axis').onChange(() => rebuildScene());

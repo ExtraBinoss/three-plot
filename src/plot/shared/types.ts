@@ -27,6 +27,8 @@ export interface LinePlotParams extends BasePlotParams {
     borderColor?: string | THREE.Color;
     borderWidth?: number;
     dashScale?: number;
+    fillColor?: string | THREE.Color;
+    fillOpacity?: number;
 }
 
 export interface PointPlotParams extends BasePlotParams {
