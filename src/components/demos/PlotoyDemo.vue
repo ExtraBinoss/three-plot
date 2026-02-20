@@ -31,7 +31,7 @@
       <div class="formula-list">
         <div v-for="(formula, index) in formulas" :key="index" class="formula-item" :style="{ borderColor: formula.color }">
           <div class="formula-meta">
-            <span class="formula-name" :style="{ color: formula.color }">f{{ index + 1 }}(x,t) =</span>
+            <span class="formula-name" :style="{ color: formula.color }">f{{ index + 1 }}(x) <span class="divider">|</span></span>
             <input 
               v-model="formula.text" 
               @input="updatePlots"
@@ -45,6 +45,7 @@
           <div v-if="formula.error" class="error-msg">{{ formula.error }}</div>
         </div>
       </div>
+      <button @click="addFormula" class="add-formula-btn">+ Add Formula</button>
 
       <div class="controls">
         <div class="control-row">
@@ -153,6 +154,13 @@ const toggleFormula = (index: number) => {
   }
 };
 
+const addFormula = () => {
+    const colors = ['#ff3e3e', '#3eff3e', '#3e3eff', '#ffff3e', '#3effff', '#ff3eff', '#ff8800', '#00ffcc'];
+    const color = (colors[formulas.value.length % colors.length] || colors[0]) as string;
+    formulas.value.push({ text: '0', color, enabled: true, error: '' });
+    rebuildScene();
+};
+
 const floatify = (str: string) => {
     let res = str.replace(/([a-zA-Z0-9._]+)\^([a-zA-Z0-9._]+)/g, 'pow($1, $2)');
     res = res.replace(/(?<![a-zA-Z._\d])(\d+)(?![.\d])/g, '$1.0');
@@ -167,7 +175,7 @@ const updatePlots = () => {
     if (f.text.trim()) {
         try {
             let glsl = f.text;
-            for(let j=0; j<6; j++) {
+            for(let j=0; j<formulas.value.length; j++) {
                 const reg = new RegExp(`\\bf${j+1}\\b(?!\\()`, 'g');
                 glsl = glsl.replace(reg, `f${j+1}(x,t)`);
             }
@@ -366,6 +374,9 @@ onUnmounted(() => {});
   display: flex;
   flex-direction: column;
   gap: 10px;
+  overflow-y: auto;
+  max-height: 45vh;
+  padding-right: 5px;
 }
 
 .formula-item {
@@ -376,9 +387,42 @@ onUnmounted(() => {});
   border: 1px solid #151515;
 }
 
+.formula-meta {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+}
+
 .formula-name {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.divider {
+  color: #444;
+}
+
+.add-formula-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  color: #888;
+  padding: 8px;
+  border-radius: 6px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.8rem;
+  cursor: pointer;
+  margin-top: 10px;
+  transition: all 0.2s;
+}
+
+.add-formula-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 .formula-input {
@@ -433,11 +477,11 @@ onUnmounted(() => {});
   margin-bottom: 8px;
 }
 
-.control-row label { flex: 1.5; color: #444; }
-.control-row input { flex: 2; accent-color: #333; }
-.control-row span { width: 40px; color: #555; font-family: monospace; text-align: right; }
+.control-row label { flex: 1.5; color: #ccc; }
+.control-row input { flex: 2; accent-color: #00ccff; }
+.control-row span { width: 40px; color: #aaa; font-family: monospace; text-align: right; font-weight: bold; }
 
-.footer { margin-top: 20px; font-size: 0.65rem; color: #222; }
+.footer { margin-top: 20px; font-size: 0.65rem; color: #888; }
 
 .project-links {
   margin-top: 10px;
