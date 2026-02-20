@@ -16,7 +16,7 @@
 import { ref, reactive, onMounted, onUnmounted, watch } from 'vue';
 import GUI from 'lil-gui';
 import PlotView from '../PlotView.vue';
-import { type PlotContainer, type SurfacePlot, type AxisPlot } from '../../plot';
+import { type PlotContainer, type SurfacePlot } from '../../plot';
 import { PerspectiveCamera } from 'three';
 
 const presets = ['Ripple', 'Cross Wave', 'Orbital Sine', 'Terrain Noise'];
@@ -51,7 +51,6 @@ const colormaps: Record<string, string[]> = {
 
 let containerInstance: PlotContainer | null = null;
 let activePlot: SurfacePlot | null = null;
-let activeAxis: AxisPlot | null = null;
 let gui: GUI | null = null;
 let presetControl: any = null;
 
@@ -102,13 +101,11 @@ const rebuildScene = () => {
 
   // 1. Setup Axis
   if (params.showAxis) {
-      activeAxis = containerInstance.axis(params.axisColor)
+      containerInstance.axis(params.axisColor)
                     .ticks(50, 8)
                     .thickness(0.8)
                     .rangeX(-params.width/2, params.width/2)
                     .rangeY(-params.amplitude*1.5, params.amplitude*1.5);
-  } else {
-      activeAxis = null;
   }
 
   // 2. Setup Plot
